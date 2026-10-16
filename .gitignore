@@ -1,0 +1,8 @@
+# 내려받은 설치 파일·빌드 결과(수백 MB) — 저장소에 넣지 않는다. 배포는 구글 드라이브 링크
+.cache/
+dist/
+.DS_Store
+# E2E 결과는 요약만 남기고 캡처·로그는 로컬에만
+e2e/results/**
+!e2e/results/**/
+!e2e/results/**/summary.md

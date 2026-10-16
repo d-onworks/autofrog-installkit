@@ -66,7 +66,10 @@ if ($state.claude -eq $false -and (Ask '클로드에 로그인할까요?')) {
 
 # 3. GitHub — 질문 4개를 건너뛰고 바로 브라우저 승인으로 간다. git push 도 이 로그인을 쓰게 연결한다.
 if ($state.github -eq $false -and (Ask 'GitHub 에 로그인할까요?')) {
-    Write-Step '화면에 나오는 8자리 코드를 브라우저에 입력하세요(코드는 자동으로 복사됩니다).'
+    # git 비밀번호 관리자를 gh 로 먼저 지정해 둔다. 이게 없으면 gh 가 영어로
+    # "Authenticate Git with your GitHub credentials? (Y/n)" 를 물어 수강생이 멈춘다.
+    [void](Invoke-Native 'gh' @('auth', 'setup-git', '--hostname', 'github.com', '--force'))
+    Write-Step '8자리 코드가 나오면 Enter 를 누르세요 → 브라우저가 열리면 코드를 붙여 넣고(Ctrl+V, 자동 복사됨) 승인합니다.'
     & gh auth login --hostname github.com --git-protocol https --web --skip-ssh-key --clipboard
 }
 if ((Test-Login 'github')) {

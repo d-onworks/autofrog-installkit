@@ -8,9 +8,18 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 . (Join-Path $PSScriptRoot 'common.ps1')
 
+. (Join-Path $PSScriptRoot 'online.ps1')
+
 $KitRoot  = Split-Path $PSScriptRoot -Parent
 $Payload  = Join-Path $KitRoot 'payload'
-$Manifest = Get-Content (Join-Path $Payload 'manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+# 설치 파일 동봉판(수강생 zip) = payload\manifest.json 이 있다. 없으면 온라인판 — 설치하면서 최신판을 받는다.
+$ManifestPath = Join-Path $Payload 'manifest.json'
+$Online = -not (Test-Path $ManifestPath)
+if ($Online) {
+    $Manifest = [pscustomobject]@{ built = '온라인 설치판 — 최신판을 공식 배포처에서 받습니다'; files = [pscustomobject]@{} }
+} else {
+    $Manifest = Get-Content $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+}
 
 New-Item -ItemType Directory -Force -Path $script:LogDir, $script:KitHome, $script:KitBin | Out-Null
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -21,7 +30,19 @@ $Results = [ordered]@{}   # 단계별 결과(로그·검증 표에 쓴다)
 function Set-Result([string]$k, [string]$state, [string]$note) {
     $Results[$k] = [ordered]@{ state = $state; note = $note }
 }
-function Get-PayloadFile([string]$key) { return Join-Path $Payload $Manifest.files.$key.file }
+$script:Installers = @{}
+function Get-Installer([string]$key) {
+    # 설치 파일 경로와 버전. 동봉판은 payload 에서, 온라인판은 그 자리에서 받아 검증한 것.
+    if ($script:Installers.ContainsKey($key)) { return $script:Installers[$key] }
+    if ($Online) {
+        $it = Get-OnlineInstaller $key
+    } else {
+        $f = $Manifest.files.$key
+        $it = [pscustomobject]@{ Path = (Join-Path $Payload $f.file); Version = $f.version }
+    }
+    $script:Installers[$key] = $it
+    return $it
+}
 
 function Invoke-Step([string]$key, [string]$title, [scriptblock]$body) {
     Write-Title $title
@@ -95,6 +116,10 @@ Invoke-Step 'precheck' '0. 사전 점검' {
         @{ n = 'GitHub';          u = 'https://github.com/' },
         @{ n = 'VS Code 확장';     u = 'https://marketplace.visualstudio.com/'; method = 'Get' }
     )
+    if ($Online) {
+        $hosts += @{ n = 'Node.js 배포처'; u = 'https://nodejs.org/dist/index.json' }
+        $hosts += @{ n = 'VS Code 배포처'; u = 'https://update.code.visualstudio.com/api/update/win32-x64-user/stable/latest'; method = 'Get' }
+    }
     foreach ($h in $hosts) {
         try {
             $method = if ($h.method) { $h.method } else { 'Head' }
@@ -115,9 +140,9 @@ Invoke-Step 'git' '1. Git 설치' {
         Write-Skip "이미 설치돼 있습니다: $git"
         Set-Result 'git' 'SKIP' $git
     } else {
-        $exe = Get-PayloadFile 'git'
-        Write-Step "Git $($Manifest.files.git.version) 설치 중(1~2분)…"
-        $p = Start-Process -FilePath $exe -Wait -PassThru -ArgumentList @(
+        $it = Get-Installer 'git'
+        Write-Step "Git $($it.Version) 설치 중(1~2분)…"
+        $p = Start-Process -FilePath $it.Path -Wait -PassThru -ArgumentList @(
             '/VERYSILENT', '/NORESTART', '/NOCANCEL', '/SP-', '/SUPPRESSMSGBOXES', '/CLOSEAPPLICATIONS',
             ('/DIR="' + (Join-Path $env:LOCALAPPDATA 'Programs\Git') + '"'), '/o:PathOption=Cmd')
         if ($p.ExitCode -ne 0) { throw "Git 설치 프로그램이 오류로 끝났습니다(코드 $($p.ExitCode))." }
@@ -150,8 +175,9 @@ Invoke-Step 'node' '2. Node.js 설치' {
         $dest = Join-Path $script:KitHome 'node'
         $tmp = Join-Path $script:KitHome '_node_tmp'
         if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
-        Write-Step "Node.js $($Manifest.files.node.version) 압축 푸는 중…"
-        Expand-Zip (Get-PayloadFile 'node') $tmp
+        $it = Get-Installer 'node'
+        Write-Step "Node.js $($it.Version) 압축 푸는 중…"
+        Expand-Zip $it.Path $tmp
         $inner = Get-ChildItem $tmp -Directory | Select-Object -First 1
         if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
         Move-Item $inner.FullName $dest
@@ -174,24 +200,26 @@ Invoke-Step 'node' '2. Node.js 설치' {
 Invoke-Step 'gh' '3-1. GitHub CLI 설치' {
     $gh = Find-Exe 'gh'
     if ($gh) { Write-Skip "이미 설치돼 있습니다: $gh"; Set-Result 'gh' 'SKIP' $gh; return }
+    $it = Get-Installer 'gh'
     $tmp = Join-Path $script:KitHome '_gh_tmp'
-    Expand-Zip (Get-PayloadFile 'gh') $tmp
+    Expand-Zip $it.Path $tmp
     Copy-Item (Join-Path $tmp 'bin\gh.exe') $script:KitBin -Force
     Remove-Item $tmp -Recurse -Force
-    Write-Ok "GitHub CLI $($Manifest.files.gh.version) 설치 완료"
+    Write-Ok "GitHub CLI $($it.Version) 설치 완료"
     Set-Result 'gh' 'OK' (Join-Path $script:KitBin 'gh.exe')
 }
 
 Invoke-Step 'supabase' '3-2. Supabase CLI 설치' {
     $sb = Find-Exe 'supabase'
     if ($sb) { Write-Skip "이미 설치돼 있습니다: $sb"; Set-Result 'supabase' 'SKIP' $sb; return }
+    $it = Get-Installer 'supabase'
     $tmp = Join-Path $script:KitHome '_sb_tmp'
-    Expand-Zip (Get-PayloadFile 'supabase') $tmp
+    Expand-Zip $it.Path $tmp
     # supabase.exe 와 supabase-go.exe 는 반드시 같은 폴더에 있어야 한다
     Get-ChildItem $tmp -Recurse -Filter 'supabase*.exe' | ForEach-Object { Copy-Item $_.FullName $script:KitBin -Force }
     Remove-Item $tmp -Recurse -Force
     if (-not (Test-Path (Join-Path $script:KitBin 'supabase.exe'))) { throw 'supabase.exe 를 찾지 못했습니다.' }
-    Write-Ok "Supabase CLI $($Manifest.files.supabase.version) 설치 완료"
+    Write-Ok "Supabase CLI $($it.Version) 설치 완료"
     Set-Result 'supabase' 'OK' (Join-Path $script:KitBin 'supabase.exe')
 }
 [void](Add-UserPath @($script:KitBin))
@@ -209,8 +237,9 @@ function Find-CodeCmd {
 Invoke-Step 'vscode' '4. VS Code 설치' {
     $code = Find-CodeCmd
     if ($code) { Write-Skip "이미 설치돼 있습니다: $code"; Set-Result 'vscode' 'SKIP' $code; return }
-    Write-Step "VS Code $($Manifest.files.vscode.version) 설치 중(1~2분)…"
-    $p = Start-Process -FilePath (Get-PayloadFile 'vscode') -Wait -PassThru -ArgumentList @(
+    $it = Get-Installer 'vscode'
+    Write-Step "VS Code $($it.Version) 설치 중(1~2분)…"
+    $p = Start-Process -FilePath $it.Path -Wait -PassThru -ArgumentList @(
         '/VERYSILENT', '/NORESTART', '/SUPPRESSMSGBOXES',
         '/MERGETASKS=!runcode,addcontextmenufiles,addcontextmenufolders,associatewithfiles,addtopath')
     if ($p.ExitCode -ne 0) { throw "VS Code 설치 프로그램이 오류로 끝났습니다(코드 $($p.ExitCode))." }
@@ -300,7 +329,8 @@ Invoke-Step 'claude' '7. 클로드 코드 설치' {
 function Install-CodexOffline {
     # 공식 설치기(chatgpt.com/codex/install.ps1)와 같은 폴더 구조로 깐다 → 나중에 `codex update` 가 그대로 된다
     $target = 'x86_64-pc-windows-msvc'
-    $ver = $Manifest.files.codex.version
+    $it = Get-Installer 'codex'
+    $ver = $it.Version
     $root = Join-Path $env:USERPROFILE '.codex\packages\standalone'
     $releaseName = "$ver-$target"
     $releaseDir = Join-Path $root "releases\$releaseName"
@@ -311,7 +341,7 @@ function Install-CodexOffline {
     if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
     Write-Step "코덱스 $ver 압축 푸는 중…"
-    $r = Invoke-Native (Join-Path $env:windir 'System32\tar.exe') @('-xzf', (Get-PayloadFile 'codex'), '-C', $staging)
+    $r = Invoke-Native (Join-Path $env:windir 'System32\tar.exe') @('-xzf', $it.Path, '-C', $staging)
     if ($r.Code -ne 0 -or -not (Test-Path (Join-Path $staging 'bin\codex.exe'))) { throw "코덱스 압축 해제 실패: $($r.Out)" }
     if (Test-Path $releaseDir) { Remove-Item $releaseDir -Recurse -Force }
     Move-Item $staging $releaseDir
@@ -330,7 +360,7 @@ Invoke-Step 'codex' '8. 코덱스 설치' {
     else {
         $how = 'offline'
         try { Install-CodexOffline } catch {
-            Write-Warn2 "동봉 파일 설치 실패: $($_.Exception.Message) → npm 으로 다시 시도합니다."
+            Write-Warn2 "공식 패키지 설치 실패: $($_.Exception.Message) → npm 으로 다시 시도합니다."
             $how = 'npm'
             $r = Invoke-Native 'npm.cmd' @('install', '-g', '@openai/codex', '--no-fund', '--no-audit', '--loglevel=error')
             if ($r.Code -ne 0) { throw "npm 설치도 실패했습니다(코드 $($r.Code))." }
@@ -446,9 +476,22 @@ foreach ($k in $labels.Keys) {
     }
 }
 
+if ($Online) { Clear-OnlineDownloads }
+
+# 새 PATH 를 물려받은 VS Code 를 이 창에서 띄운다(이미 켜진 VS Code 는 옛 PATH 를 쓴다)
+$openedCode = $false
+$code = Find-CodeCmd
+if ($code -and -not (Get-Process -Name Code -ErrorAction SilentlyContinue)) {
+    Write-Host ''
+    Write-Host '  VS Code 를 엽니다. 아래 터미널에서 codex 또는 claude 를 입력해 보세요.' -ForegroundColor White
+    try { Start-Process -FilePath $code -WindowStyle Hidden; $openedCode = $true } catch { Write-Warn2 "VS Code 를 열지 못했습니다: $($_.Exception.Message)" }
+}
+
 $report = [ordered]@{
-    kit = $Manifest.built; finished = (Get-Date).ToString('s'); user = $env:USERNAME
-    allOk = $allOk; steps = $Results; verify = $verified
+    kit = $Manifest.built; online = $Online; finished = (Get-Date).ToString('s'); user = $env:USERNAME
+    allOk = $allOk; openedCode = $openedCode
+    installers = @($script:Installers.Keys | ForEach-Object { [ordered]@{ key = $_; version = $script:Installers[$_].Version } })
+    steps = $Results; verify = $verified
 }
 $reportFile = Join-Path $script:LogDir "result-$stamp.json"
 [IO.File]::WriteAllText($reportFile, ($report | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding $false))
@@ -461,15 +504,6 @@ if ($allOk) {
 } else {
     Write-Host '  일부 설치가 안 됐습니다. 위 [실패] 줄과 아래 기록 파일을 강사에게 보여 주세요.' -ForegroundColor Yellow
     Write-Host "  $logFile" -ForegroundColor Yellow
-}
-
-if (-not $Auto) {
-    # 새 PATH 를 물려받은 VS Code 를 이 창에서 띄운다(이미 켜진 VS Code 는 옛 PATH 를 쓴다)
-    $code = Find-CodeCmd
-    if ($code -and -not (Get-Process -Name Code -ErrorAction SilentlyContinue)) {
-        Write-Host '  VS Code 를 엽니다. 아래 터미널에서 codex 또는 claude 를 입력해 보세요.' -ForegroundColor White
-        Start-Process -FilePath $code -WindowStyle Hidden
-    }
 }
 try { Stop-Transcript | Out-Null } catch {}
 if ($allOk) { exit 0 } else { exit 1 }

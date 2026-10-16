@@ -5,7 +5,10 @@
   Git for Windows · Node.js 24 LTS · GitHub CLI · Supabase CLI · VS Code(사용자 설치판) · 코덱스 패키지
 클로드 코드는 재배포 금지라 묶지 않는다(설치할 때 공식 서버에서 받는다). Vercel CLI 는 npm 으로 받는다.
 
-사용: python3 build.py          → dist/autofrog-setup-kit-YYYYMMDD.zip
+사용: python3 build.py           → dist/autofrog-setup-kit-YYYYMMDD.zip  (설치 파일 동봉판 · 수강생용 드라이브)
+      python3 build.py --online  → dist/autofrog-setup-kit.zip           (온라인판 · 공개용 깃허브 Releases)
+온라인판은 payload 없이 스크립트만 담는다. 설치할 때 kit/scripts/online.ps1 이 공식 배포처에서 최신판을 받는다.
+이름이 늘 같아야 https://github.com/d-onworks/autofrog-installkit/releases/latest/download/autofrog-setup-kit.zip 이 고정 주소가 된다.
 """
 import hashlib, json, os, re, shutil, subprocess, sys, urllib.request, zipfile
 from datetime import datetime
@@ -111,27 +114,31 @@ def text_for_windows(src: Path, dst: Path):
 
 def main():
     now = datetime.now(ZoneInfo("Asia/Seoul"))
-    print("최신 안정판 확인 중…")
-    files = resolve()
-    for k, v in files.items():
-        print(f"  {k:9} {v['version']}")
-    for v in files.values():
-        fetch(v)
+    online = "--online" in sys.argv[1:]
+    files = {}
+    if not online:
+        print("최신 안정판 확인 중…")
+        files = resolve()
+        for k, v in files.items():
+            print(f"  {k:9} {v['version']}")
+        for v in files.values():
+            fetch(v)
 
-    name = f"autofrog-setup-kit-{now:%Y%m%d}"
+    name = "autofrog-setup-kit" if online else f"autofrog-setup-kit-{now:%Y%m%d}"
     stage = DIST / "stage" / name
     if stage.exists():
         shutil.rmtree(stage)
     (stage / "scripts").mkdir(parents=True)
-    (stage / "payload").mkdir()
     for p in KIT.rglob("*"):
-        if p.is_file():
+        if p.is_file() and p.name != ".DS_Store":
             text_for_windows(p, stage / p.relative_to(KIT))
-    for v in files.values():
-        os.link(CACHE / v["file"], stage / "payload" / v["file"])
-    manifest = {"built": now.strftime("%Y-%m-%d %H:%M KST"),
-                "files": {k: {kk: v[kk] for kk in ("version", "file", "sha256")} for k, v in files.items()}}
-    (stage / "payload" / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    if not online:
+        (stage / "payload").mkdir()
+        for v in files.values():
+            os.link(CACHE / v["file"], stage / "payload" / v["file"])
+        manifest = {"built": now.strftime("%Y-%m-%d %H:%M KST"),
+                    "files": {k: {kk: v[kk] for kk in ("version", "file", "sha256")} for k, v in files.items()}}
+        (stage / "payload" / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
     zpath = DIST / f"{name}.zip"
     if zpath.exists():

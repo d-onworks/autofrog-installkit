@@ -2,8 +2,8 @@
 
 **코딩을 처음 하는 분이 클로드 코드(Claude Code)나 코덱스(Codex)를 쓰기 위해 필요한 프로그램을 한 번에 설치하는 패키지입니다.**
 
-압축을 풀고 `1-install.bat` 하나만 더블클릭하면 아래 프로그램이 순서대로 깔리고,
-새 PowerShell 창이나 VS Code 터미널에서 `claude` · `codex` 명령이 바로 실행되게 맞춰집니다.
+압축을 풀고 `1-install.bat` 하나만 더블클릭하면 아래 프로그램의 **최신 안정판을 공식 배포처에서 내려받아** 순서대로 깔고,
+마지막에 VS Code 까지 열어 줍니다. 새 PowerShell 창이나 VS Code 터미널에서 `claude` · `codex` 명령이 바로 실행됩니다.
 관리자 권한 없이 내 계정 폴더에만 설치합니다. 로그인만 직접 하면 됩니다.
 
 | 순서 | 설치되는 것 | 용도 |
@@ -20,13 +20,15 @@
 
 ## 쓰는 법
 
-1. zip 을 받아 마우스 오른쪽 클릭 → **모두 압축 풀기** (zip 안에서 바로 실행하지 마세요)
-2. **`1-install.bat`** 더블클릭 → 기다리기 (보통 5~15분)
+1. **[설치 파일 받기 (autofrog-setup-kit.zip)](https://github.com/d-onworks/autofrog-installkit/releases/latest/download/autofrog-setup-kit.zip)** — 50KB 남짓
+   - 이 페이지의 초록색 `Code` → `Download ZIP` 으로 받은 것은 쓰지 마세요(윈도우용 글자 형식으로 묶이지 않아 한글이 깨집니다)
+2. 받은 zip 을 마우스 오른쪽 클릭 → **모두 압축 풀기** (zip 안에서 바로 실행하지 마세요)
+3. **`1-install.bat`** 더블클릭 → 기다리기 (인터넷 속도에 따라 5~15분, 인터넷 연결 필요)
    - 파란 "Windows의 PC 보호" 창이 뜨면 **추가 정보 → 실행**
-   - 끝나면 버전 표가 나옵니다. **10줄 모두 `[ OK ]`** 면 성공
-3. **PowerShell 창에서 한 줄씩 로그인** — `claude`(또는 `codex`) · `gh auth login` · `vercel login` · `supabase login`
+   - 끝나면 버전 표가 나오고 VS Code 가 열립니다. **10줄 모두 `[ OK ]`** 면 성공
+4. **PowerShell 창에서 한 줄씩 로그인** — `claude`(또는 `codex`) · `gh auth login` · `vercel login` · `supabase login`
    - `2-login.bat` 을 더블클릭해도 같은 순서로 물어봅니다
-4. VS Code 에서 작업 폴더를 열고 터미널에 `cx`(코덱스) 또는 `cc`(클로드) — 확인 창 없이 바로 시작합니다.
+5. VS Code 에서 작업 폴더를 열고 터미널에 `cx`(코덱스) 또는 `cc`(클로드) — 확인 창 없이 바로 시작합니다.
    확인 없이 파일을 고치므로 연습 폴더에서 쓰세요.
 
 **에러가 나면** — PC마다 보안 설정이 달라 에러가 날 수 있습니다. 에러 화면을 그대로 캡처해(`Win`+`Shift`+`S`)
@@ -48,12 +50,13 @@ Supabase CLI 를 npm 으로 깔다 실패하는 문제를 한 번에 막도록 �
 ## 직접 zip 만들기
 
 ```bash
-python3 build.py      # → dist/autofrog-setup-kit-YYYYMMDD.zip
+python3 build.py --online   # → dist/autofrog-setup-kit.zip            온라인판(공개 배포용, 스크립트만)
+python3 build.py            # → dist/autofrog-setup-kit-YYYYMMDD.zip   설치 파일 동봉판(수업용, 약 590MB)
 ```
 
-`build.py` 가 Git · Node.js · GitHub CLI · Supabase CLI · VS Code · 코덱스의 **최신 안정판을 공식 배포처에서 받아 체크섬을 확인**한 뒤
-`kit/` 과 함께 zip 으로 묶습니다. 이 저장소에는 설치 파일이 들어 있지 않습니다.
-클로드 코드는 재배포하지 않고, 설치할 때 공식 서버(downloads.claude.ai)에서 받습니다.
+- **온라인판**: 설치하는 그 자리에서 `kit/scripts/online.ps1` 이 최신판을 받습니다. Node.js · GitHub CLI · Supabase CLI · 코덱스 · VS Code 는 공식 체크섬(SHA-256), Git 은 디지털 서명으로 확인합니다. 최신 버전은 GitHub API 대신 `releases/latest` 주소로 알아내 교실 여러 대가 같은 인터넷을 써도 횟수 제한에 걸리지 않습니다.
+- **동봉판**: `build.py` 가 같은 파일을 미리 받아 체크섬을 확인한 뒤 `payload/` 에 넣습니다. 설치 중 다운로드가 줄어 수업 현장용입니다.
+- 이 저장소에는 설치 파일이 들어 있지 않습니다. 클로드 코드는 두 판 모두 설치할 때 공식 서버(downloads.claude.ai)에서 받습니다.
 
 ## 검증
 

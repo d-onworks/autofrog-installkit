@@ -6,3 +6,5 @@ dist/
 e2e/results/**
 !e2e/results/**/
 !e2e/results/**/summary.md
+.trash/
+e2e/current-run.txt

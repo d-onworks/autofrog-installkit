@@ -92,9 +92,9 @@ if ($state.vercel -eq $false -and (Ask 'Vercel 에 로그인할까요?')) {
     & vercel.cmd login
 }
 
-# 5. Supabase — 확인 코드를 붙여 넣는 칸은 화면에 아무것도 안 보이는 게 정상
+# 5. Supabase — Enter 로 브라우저를 연 뒤, 브라우저에 나온 확인 코드(영문·숫자 8자리)를 창에 붙여 넣는다
 if ($state.supabase -eq $false -and (Ask 'Supabase 에 로그인할까요?')) {
-    Write-Step '브라우저에서 확인 코드를 복사해 붙여 넣고 Enter. (붙여 넣어도 화면에 안 보이는 게 정상입니다)'
+    Write-Step 'Enter 를 누르면 브라우저가 열립니다 → 로그인 후 나오는 확인 코드(8자리)를 복사해 이 창에 붙여 넣고 Enter.'
     & supabase login
 }
 

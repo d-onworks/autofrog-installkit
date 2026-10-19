@@ -7,6 +7,7 @@
 
 사용: python3 build.py           → dist/autofrog-setup-kit-YYYYMMDD.zip  (설치 파일 동봉판 · 수강생용 드라이브)
       python3 build.py --online  → dist/autofrog-setup-kit.zip           (온라인판 · 공개용 깃허브 Releases)
+      python3 build.py --mac     → dist/autofrog-setup-kit-mac.zip       (맥 온라인판 · kit-mac/ 을 그대로 묶음)
 온라인판은 payload 없이 스크립트만 담는다. 설치할 때 kit/scripts/online.ps1 이 공식 배포처에서 최신판을 받는다.
 이름이 늘 같아야 https://github.com/d-onworks/autofrog-installkit/releases/latest/download/autofrog-setup-kit.zip 이 고정 주소가 된다.
 """
@@ -17,6 +18,7 @@ from zoneinfo import ZoneInfo
 
 HERE = Path(__file__).resolve().parent
 KIT = HERE / "kit"
+KIT_MAC = HERE / "kit-mac"
 CACHE = HERE / ".cache"
 DIST = HERE / "dist"
 NODE_MAJOR = 24  # 수업 기간 동안 고정(2026-10-28 에 26 이 LTS 가 된다)
@@ -112,7 +114,36 @@ def text_for_windows(src: Path, dst: Path):
         dst.write_bytes(b"\xef\xbb\xbf" + raw.encode("utf-8"))
 
 
+def build_mac():
+    """맥판: 설치 파일 없이 스크립트만. LF 줄바꿈 그대로, .command·.sh 는 실행 권한(755)을 zip 에 기록한다
+    (맥 기본 압축 풀기가 이 권한을 살려야 더블클릭으로 열린다)."""
+    name = "autofrog-setup-kit-mac"
+    DIST.mkdir(exist_ok=True)
+    zpath = DIST / f"{name}.zip"
+    if zpath.exists():
+        zpath.unlink()
+    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
+        stamp = datetime.now().timetuple()[:6]
+        for d in [name, f"{name}/scripts"]:
+            zi = zipfile.ZipInfo(d + "/", date_time=stamp)
+            zi.external_attr = (0o40755 << 16) | 0x10
+            z.writestr(zi, b"")
+        for p in sorted(KIT_MAC.rglob("*")):
+            if not p.is_file() or p.name == ".DS_Store":
+                continue
+            data = p.read_bytes().replace(b"\r\n", b"\n")
+            zi = zipfile.ZipInfo(f"{name}/{p.relative_to(KIT_MAC).as_posix()}", date_time=stamp)
+            zi.compress_type = zipfile.ZIP_DEFLATED
+            zi.create_system = 3  # 유닉스 — 권한 비트를 읽게
+            mode = 0o755 if p.suffix in (".command", ".sh") else 0o644
+            zi.external_attr = (0o100000 | mode) << 16
+            z.writestr(zi, data)
+    print(f"완성: {zpath}  ({zpath.stat().st_size / 1e3:.0f} KB)\nsha256 {sha256(zpath)}")
+
+
 def main():
+    if "--mac" in sys.argv[1:]:
+        return build_mac()
     now = datetime.now(ZoneInfo("Asia/Seoul"))
     online = "--online" in sys.argv[1:]
     files = {}

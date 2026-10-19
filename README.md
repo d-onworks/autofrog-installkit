@@ -1,4 +1,4 @@
-# autofrog-installkit — 원클릭 설치 패키지 (윈도우)
+# autofrog-installkit — 원클릭 설치 패키지 (윈도우 · 맥)
 
 **코딩을 처음 하는 분이 클로드 코드(Claude Code)나 코덱스(Codex)를 쓰기 위해 필요한 프로그램을 한 번에 설치하는 패키지입니다.**
 
@@ -36,6 +36,27 @@
 
 A4 한 장 매뉴얼: [`manual/`](manual/)
 
+## 맥(macOS)판
+
+`kit-mac/` — 같은 8가지를 맥에 설치합니다. macOS 13.5 이상, 애플 실리콘·인텔.
+
+1. `autofrog-setup-kit-mac.zip` 을 더블클릭해 풀고 → **`1-install.command`** 더블클릭
+   - "열지 않음" 창이 뜨면 **완료 → 시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기**
+     (그래도 안 되면 터미널에 `bash ` 를 치고 파일을 끌어다 놓은 뒤 Enter)
+   - "터미널이 다운로드 폴더에 접근하려고 합니다" → **허용**
+   - Git 이 없으면 맥이 "명령어 라인 개발자 도구" 설치 창을 띄웁니다 → **설치 → 동의**
+2. 끝나면 버전 표 10줄이 `[ OK ]` 이고 VS Code 가 열립니다. 로그인은 `2-login.command` 또는 터미널에서 한 줄씩.
+
+- 내 계정 폴더에만 설치합니다(`~/.autofrog-kit` · `~/.npm-global` · `~/Applications/Visual Studio Code.app`). 애플 개발자 도구만 맥이 직접 설치합니다.
+- 클로드 코드 · 코덱스는 각 회사의 공식 설치 스크립트(체크섬 확인 포함)로 깔고, 나머지는 공식 체크섬(VS Code 는 마이크로소프트 서명까지) 확인 후 설치합니다.
+- PATH 와 바로가기는 `~/.zprofile` · `~/.zshrc` 의 표시된 블록 하나에만 씁니다. `cc` 는 맥의 C 컴파일러 이름이라 **파일이 아니라 별칭(alias)** 으로 넣어, 터미널에서 칠 때만 클로드가 열리고 npm 의 컴파일은 그대로 둡니다.
+- zip 만들기: `python3 build.py --mac` → `dist/autofrog-setup-kit-mac.zip` (실행 권한을 zip 에 기록)
+- A4 매뉴얼: [`manual/mac.html`](manual/mac.html) · PDF
+
+검증(UTM 맥 가상머신, macOS 26.5 · 애플 실리콘): 개발자 도구 없는 관리자 계정 · 아무것도 없는 **관리자 아닌 계정** 모두 10줄 `[ OK ]`,
+다시 실행 시 전부 건너뜀, 새 터미널에서 `npx create-next-app` → `npm run build` 성공 —
+[`e2e-mac/results/summary.md`](e2e-mac/results/summary.md)
+
 ## 왜 만들었나
 
 수업에서 수강생 PC마다 설치가 다르게 깨져 설치에만 3시간이 걸렸습니다.
@@ -72,9 +93,11 @@ python3 build.py            # → dist/autofrog-setup-kit-YYYYMMDD.zip   설치 
 | 폴더 | 내용 |
 |---|---|
 | `kit/` | 사용자에게 가는 파일 — `1-install.bat` · `2-login.bat` · `README.txt` · `scripts/*.ps1` |
+| `kit-mac/` | 맥판 — `1-install.command` · `2-login.command` · `README.txt` · `scripts/*.sh` (맥 기본 bash 3.2) |
 | `build.py` | 최신판 내려받기 + zip 만들기 |
 | `manual/` | A4 한 장 매뉴얼 (HTML · PDF) |
 | `e2e/` | 윈도우 샌드박스 E2E 테스트 도구와 회차별 결과 요약 |
+| `e2e-mac/` | 맥 가상머신 E2E 결과 요약 |
 
 ---
 

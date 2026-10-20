@@ -40,7 +40,7 @@ A4 한 장 매뉴얼: [`manual/`](manual/)
 
 `kit-mac/` — 같은 8가지를 맥에 설치합니다. macOS 13.5 이상, 애플 실리콘·인텔.
 
-1. `autofrog-setup-kit-mac.zip` 을 더블클릭해 풀고 → **`1-install.command`** 더블클릭
+1. **[맥 설치 파일 받기 (autofrog-setup-kit-mac.zip)](https://github.com/d-onworks/autofrog-installkit/releases/latest/download/autofrog-setup-kit-mac.zip)** — 20KB 남짓. 더블클릭해 풀고 → **`1-install.command`** 더블클릭
    - "열지 않음" 창이 뜨면 **완료 → 시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기**
      (그래도 안 되면 터미널에 `bash ` 를 치고 파일을 끌어다 놓은 뒤 Enter)
    - "터미널이 다운로드 폴더에 접근하려고 합니다" → **허용**

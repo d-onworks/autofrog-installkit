@@ -1,17 +1,21 @@
-﻿# 수강생이 Win+R 에 붙여 넣는 한 줄과 같은 명령을 보이는 창에서 돌린다(주소만 샌드박스 안 시험 서버).
+﻿# 수강생이 Win+R 에 붙여 넣는 한 줄과 같은 명령을 보이는 창에서 돌린다(주소는 샌드박스 안 시험 서버, live.flag 가 있으면 진짜 주소).
 param([string]$Prefix,[string]$Scenario,[string]$Label)
 $ErrorActionPreference='Continue'
 [Console]::OutputEncoding=New-Object Text.UTF8Encoding $false
 $OutputEncoding=[Console]::OutputEncoding
 $host.UI.RawUI.WindowTitle="AutoFrog $Scenario - $Label (one-liner)"
 Write-Host "AutoFrog E2E $Scenario $Label - one-line installer"
-$env:AUTOFROG_KIT_ZIP='http://localhost:8765/autofrog-setup-kit.zip'
+# C:\e2e\live.flag 가 있으면 진짜 주소(autofrog.kr → 최신 릴리즈)로 — 수강생과 똑같은 한 줄
+$live=Test-Path 'C:\e2e\live.flag'
+$kitUrl=if ($live) { 'https://autofrog.kr/kit.ps1' } else { 'http://localhost:8765/kit.ps1' }
+if ($live) { Remove-Item Env:\AUTOFROG_KIT_ZIP -ErrorAction SilentlyContinue } else { $env:AUTOFROG_KIT_ZIP='http://localhost:8765/autofrog-setup-kit.zip' }
+Write-Host "kit url: $kitUrl"
 $env:AUTOFROG_AUTO='1'
 Remove-Item Env:\PSExecutionPolicyPreference -ErrorAction SilentlyContinue
 $logs=Join-Path $env:USERPROFILE 'autofrog-kit-logs'
 $before=if (Test-Path "$logs\result-latest.json") { (Get-Item "$logs\result-latest.json").LastWriteTime } else { [datetime]::MinValue }
 $sw=[Diagnostics.Stopwatch]::StartNew()
-& powershell.exe -ExecutionPolicy Bypass -c "irm http://localhost:8765/kit.ps1 | iex" 2>&1 | Tee-Object -FilePath "$Prefix.stdout.log"
+& powershell.exe -ExecutionPolicy Bypass -c "irm $kitUrl | iex" 2>&1 | Tee-Object -FilePath "$Prefix.stdout.log"
 $psExit=$LASTEXITCODE; $sw.Stop()
 $rc=1; $fresh=$false
 if (Test-Path "$logs\result-latest.json") {

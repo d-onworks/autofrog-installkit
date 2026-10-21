@@ -53,8 +53,8 @@
 | 내 PC 에서 만든 바로가기 → PowerShell | 실행됨 |
 
 PowerShell 이 직접 받은 파일에는 인터넷 표시가 붙지 않습니다. 그래서 한 줄 설치는 설정을 하나도 바꾸지 않고
-스마트 앱 컨트롤을 지나갑니다. zip(`autofrog-setup-kit.zip`)은 같은 릴리즈에 계속 올리고, 한 줄 설치가 이것을 받아 씁니다.
-zip 을 직접 받아 쓰려면 zip 을 마우스 오른쪽 → 속성 → **차단 해제** 체크 → 확인 뒤에 압축을 푸세요.
+스마트 앱 컨트롤을 지나갑니다. zip(`autofrog-setup-kit.zip`)은 한 줄 설치가 안에서 받아 쓰는 꾸러미라 같은 릴리즈에 계속 올립니다.
+더블클릭용 `1-install.bat` · `2-login.bat` 은 없앴습니다(로그인은 바탕화면 [오토프로그 로그인] 아이콘).
 
 A4 한 장 매뉴얼: [`manual/`](manual/)
 
@@ -62,17 +62,23 @@ A4 한 장 매뉴얼: [`manual/`](manual/)
 
 `kit-mac/` — 같은 8가지를 맥에 설치합니다. macOS 13.5 이상, 애플 실리콘·인텔.
 
-1. **[맥 설치 파일 받기 (autofrog-setup-kit-mac.zip)](https://github.com/d-onworks/autofrog-installkit/releases/latest/download/autofrog-setup-kit-mac.zip)** — 20KB 남짓. 더블클릭해 풀고 → **`1-install.command`** 더블클릭
-   - "열지 않음" 창이 뜨면 **완료 → 시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기**
-     (그래도 안 되면 터미널에 `bash ` 를 치고 파일을 끌어다 놓은 뒤 Enter)
-   - "터미널이 다운로드 폴더에 접근하려고 합니다" → **허용**
+1. ⌘+Space → "터미널" → 아래 한 줄을 붙여 넣고 Enter (안내 페이지: [autofrog.kr/kit](https://autofrog.kr/kit#mac))
+
+   ```text
+   curl -fsSL https://autofrog.kr/kit.sh | bash
+   ```
+
+   - `autofrog.kr/kit.sh` 는 최신 릴리즈의 `install.sh` 로 넘겨줍니다
    - Git 이 없으면 맥이 "명령어 라인 개발자 도구" 설치 창을 띄웁니다 → **설치 → 동의**
-2. 끝나면 버전 표 10줄이 `[ OK ]` 이고 VS Code 가 열립니다. 로그인은 `2-login.command` 또는 터미널에서 한 줄씩.
+2. 끝나면 버전 표 10줄이 `[ OK ]` 이고 VS Code 가 열립니다. "이어서 로그인할까요?" → Enter. 나중에는 터미널에 `autofrog-login`.
+
+브라우저로 받은 zip 의 `.command` 는 격리 표시 때문에 "열지 않음" 창에 막히고, 다운로드 폴더 접근 허용 창도 떴습니다.
+`curl` 로 받은 파일에는 그 표시가 없어 두 창 모두 뜨지 않습니다(2026-10-21 전환).
 
 - 내 계정 폴더에만 설치합니다(`~/.autofrog-kit` · `~/.npm-global` · `~/Applications/Visual Studio Code.app`). 애플 개발자 도구만 맥이 직접 설치합니다.
 - 클로드 코드 · 코덱스는 각 회사의 공식 설치 스크립트(체크섬 확인 포함)로 깔고, 나머지는 공식 체크섬(VS Code 는 마이크로소프트 서명까지) 확인 후 설치합니다.
 - PATH 와 바로가기는 `~/.zprofile` · `~/.zshrc` 의 표시된 블록 하나에만 씁니다. `cc` 는 맥의 C 컴파일러 이름이라 **파일이 아니라 별칭(alias)** 으로 넣어, 터미널에서 칠 때만 클로드가 열리고 npm 의 컴파일은 그대로 둡니다.
-- zip 만들기: `python3 build.py --mac` → `dist/autofrog-setup-kit-mac.zip` (실행 권한을 zip 에 기록)
+- zip 만들기: `python3 build.py --mac` → `dist/autofrog-setup-kit-mac.zip` + `dist/install.sh` (릴리즈에 둘 다 올린다)
 - A4 매뉴얼: [`manual/mac.html`](manual/mac.html) · PDF
 
 검증(UTM 맥 가상머신, macOS 26.5 · 애플 실리콘): 개발자 도구 없는 관리자 계정 · 아무것도 없는 **관리자 아닌 계정** 모두 10줄 `[ OK ]`,
@@ -114,9 +120,9 @@ python3 build.py            # → dist/autofrog-setup-kit-YYYYMMDD.zip   설치 
 
 | 폴더 | 내용 |
 |---|---|
-| `bootstrap/install.ps1` | 윈도우 한 줄 설치 — 릴리즈의 zip 을 받아 `%LOCALAPPDATA%\AutoFrogKit\kit` 에 풀고 설치·로그인까지 이어 준다 |
-| `kit/` | 사용자에게 가는 파일 — `1-install.bat` · `2-login.bat` · `README.txt` · `scripts/*.ps1` |
-| `kit-mac/` | 맥판 — `1-install.command` · `2-login.command` · `README.txt` · `scripts/*.sh` (맥 기본 bash 3.2) |
+| `bootstrap/install.ps1` · `install.sh` | 한 줄 설치(윈도우 · 맥) — 릴리즈의 zip 을 받아 `%LOCALAPPDATA%\AutoFrogKit\kit` 에 풀고 설치·로그인까지 이어 준다 |
+| `kit/` | 한 줄 설치가 받아 쓰는 윈도우 스크립트 — `README.txt` · `scripts/*.ps1` |
+| `kit-mac/` | 한 줄 설치가 받아 쓰는 맥 스크립트 — `README.txt` · `scripts/*.sh` (맥 기본 bash 3.2) |
 | `build.py` | 최신판 내려받기 + zip 만들기 |
 | `manual/` | A4 한 장 매뉴얼 (HTML · PDF) |
 | `e2e/` | 윈도우 샌드박스 E2E 테스트 도구와 회차별 결과 요약 |

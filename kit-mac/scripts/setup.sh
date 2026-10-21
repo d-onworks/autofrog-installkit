@@ -5,15 +5,16 @@
 # 관리자 권한 없이 내 계정 폴더에만 설치한다. 예외는 애플 개발자 도구(Git 포함) 하나 — 맥이 직접 설치 창을 띄운다.
 # 옵션: --auto     질문 없이 진행(점검·E2E 용)
 #       --no-open  끝나고 VS Code 를 열지 않음
+#       --oneliner 한 줄 설치(bootstrap/install.sh)가 불렀다 — 끝나면 이어서 로그인할지 묻는다
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 KIT_ROOT="$(dirname "$HERE")"
 . "$HERE/common.sh"
 . "$HERE/online.sh"
 
-AUTO=0; NO_OPEN=0
+AUTO=0; NO_OPEN=0; ONELINER=0
 for a in "$@"; do
-    case "$a" in --auto) AUTO=1 ;; --no-open) NO_OPEN=1 ;; esac
+    case "$a" in --auto) AUTO=1 ;; --no-open) NO_OPEN=1 ;; --oneliner) ONELINER=1 ;; esac
 done
 
 mkdir -p "$LOG_DIR" "$KIT_HOME" "$KIT_BIN"
@@ -45,7 +46,7 @@ title '오토프로그 설치 키트 (맥 · 온라인 설치판 — 최신판�
 echo '  필요한 프로그램을 차례로 설치합니다. 창을 닫지 말고 기다려 주세요.'
 printf '  %s기록 파일: %s%s\n' "$C_D" "$LOG_FILE" "$C_0"
 
-# zip 에서 풀린 파일의 "인터넷에서 받음" 표시를 지운다(2-login.command 가 그냥 열리게)
+# 혹시 붙어 온 "인터넷에서 받음" 표시를 지운다
 /usr/bin/xattr -dr com.apple.quarantine "$KIT_ROOT" 2>/dev/null
 refresh_session_path
 
@@ -133,7 +134,7 @@ s_git() {
         elif install_clt_dialog; then
             g=dialog
         else
-            die_step '개발자 도구 설치가 끝나지 않았습니다. 설치 창을 끝까지 진행한 뒤 1-install.command 를 다시 실행하세요.'; return
+            die_step '개발자 도구 설치가 끝나지 않았습니다. 설치 창을 끝까지 진행한 뒤 같은 한 줄(curl … kit.sh)을 다시 실행하세요.'; return
         fi
         clt_ready || { die_step '개발자 도구를 설치했지만 git 을 찾지 못했습니다.'; return; }
         ok "Git(개발자 도구) 설치 완료($g): /usr/bin/git"
@@ -400,18 +401,33 @@ if [ $NO_OPEN = 0 ] && [ -n "$APP" ] && ! pgrep -f -q 'Visual Studio Code.app/Co
     /usr/bin/open "$APP" >/dev/null 2>&1 && OPENED=true || warn 'VS Code 를 열지 못했습니다. Launchpad 나 응용 프로그램 폴더에서 직접 여세요.'
 fi
 
+# 로그인 명령 autofrog-login — 나중에 터미널에서 이 한 단어로 로그인 마법사를 다시 연다(윈도우의 바탕화면 아이콘과 같은 역할).
+# 바탕화면에 파일을 만들면 맥이 "터미널이 데스크탑 폴더에 접근" 허용 창을 띄우므로 명령으로 둔다.
+LOGIN_CMD=''
+KIT_SCRIPTS="$KIT_HOME/kit/scripts"
+if [ "$HERE" != "$KIT_SCRIPTS" ]; then mkdir -p "$KIT_SCRIPTS" && cp "$HERE"/*.sh "$KIT_SCRIPTS"/ 2>/dev/null; fi
+if [ -f "$KIT_SCRIPTS/login.sh" ]; then
+    printf '#!/bin/bash\n# 오토프로그 설치 키트 — 로그인 마법사(클로드·코덱스·GitHub·Vercel·Supabase)\nexec /bin/bash "$HOME/.autofrog-kit/kit/scripts/login.sh" "$@"\n' > "$KIT_BIN/autofrog-login" \
+        && chmod 755 "$KIT_BIN/autofrog-login" && LOGIN_CMD="$KIT_BIN/autofrog-login"
+fi
+
 STEPS_JSON="$(awk -F'|' '{ gsub(/\\/, "\\\\", $4); gsub(/"/, "\\\"", $4); printf "%s\"%s\":{\"state\":\"%s\",\"sec\":%s,\"note\":\"%s\"}", (NR > 1 ? "," : ""), $1, $2, ($3 == "" ? 0 : $3), $4 }' "$RES_FILE")"
 REPORT="$LOG_DIR/result-$STAMP.json"
-printf '{"kit":"mac-online","finished":"%s","user":"%s","macos":"%s","arch":"%s","allOk":%s,"openedCode":%s,"steps":{%s},"verify":{%s}}\n' \
+printf '{"kit":"mac-online","finished":"%s","user":"%s","macos":"%s","arch":"%s","allOk":%s,"openedCode":%s,"loginCommand":"%s","steps":{%s},"verify":{%s}}\n' \
     "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$(json_escape "$USER")" "$(/usr/bin/sw_vers -productVersion)" "$(mac_arch)" \
-    "$([ $ALL_OK = 1 ] && echo true || echo false)" "$OPENED" "$STEPS_JSON" "${VERIFY_JSON%,}" > "$REPORT"
+    "$([ $ALL_OK = 1 ] && echo true || echo false)" "$OPENED" "$(json_escape "$LOGIN_CMD")" "$STEPS_JSON" "${VERIFY_JSON%,}" > "$REPORT"
 cp "$REPORT" "$LOG_DIR/result-latest.json"
 rm -f "$RES_FILE"
 
 echo
 if [ $ALL_OK = 1 ]; then
     printf '  %s모든 설치가 끝났습니다.%s\n' "$C_G" "$C_0"
-    echo '  다음 단계: 같은 폴더의 [2-login.command] 를 더블클릭하세요.'
+    echo '  다음 단계: 로그인 — 나중에 하려면 새 터미널 창에서  autofrog-login  을 입력하세요.'
+    if [ $ONELINER = 1 ] && [ $AUTO = 0 ]; then
+        echo
+        read -r -p '  이어서 로그인할까요? (Enter = 예 / n = 나중에 autofrog-login 으로) ' a
+        case "$a" in n|N|no|아니*) ;; *) /bin/bash "$KIT_SCRIPTS/login.sh" ;; esac
+    fi
     exit 0
 else
     printf '  %s일부 설치가 안 됐습니다. 위 [실패] 줄과 아래 기록 파일을 강사에게 보여 주세요.%s\n' "$C_Y" "$C_0"

@@ -107,4 +107,4 @@ fi
 title '로그인 결과'
 show_table
 echo
-echo '  [ -- ] 로 남은 곳은 이 파일을 다시 실행하면 그것만 다시 물어봅니다.'
+echo '  [ -- ] 로 남은 곳은 터미널에서  autofrog-login  을 다시 실행하면 그것만 다시 물어봅니다.'

@@ -40,12 +40,11 @@
   table.login th code { font-family: Consolas, "SF Mono", monospace; font-size: 13.5px; color: var(--grn); background: var(--wash); padding: .2mm 1.4mm; border-radius: 2px; }
   table.login tr:first-child th, table.login tr:first-child td { border-top: 1px solid var(--line); }
   .note { margin-top: 2.4mm; background: var(--warnbg); border-left: 3px solid #e0a800; padding: 2mm 3mm; font-size: 13.2px; line-height: 1.55; color: #4a3600; }
+  .cmdline { margin-top: 2mm; background: var(--ink); color: #eef1ee; font-family: Consolas, "SF Mono", monospace; font-size: 13.4px; font-weight: 700; padding: 2.6mm 3.4mm; border-radius: 3px; white-space: nowrap; line-height: 1.5; }
   .ok { margin-top: 2mm; background: var(--wash); border-left: 3px solid var(--grn); padding: 2mm 3mm; font-size: 13.2px; line-height: 1.55; }
   footer { margin-top: auto; padding-top: 3.5mm; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 6mm; font-size: 12.8px; line-height: 1.55; color: var(--sub); }
   footer b { color: var(--ink); }
   @media screen { body { background: #e9ecef; } .page { margin: 10mm auto; background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,.12); } }
-  /* 맥판은 안내가 한 줄 더 많아 간격을 조금 좁힌다 */
-  .step { padding: 2.3mm 0; } .step p, .step li { font-size: 13.3px; line-height: 1.52; } .lead { font-size: 14px; }
 </style>
 </head>
 <body>
@@ -58,47 +57,45 @@
     <div class="meta">macOS 13.5 이상 · M1~ / 인텔<br>설치 약 <b>10~25분</b> · 로그인 약 10분</div>
   </header>
 
-  <p class="lead"><b>①설치</b>는 파일 하나만 누르면 수업 프로그램이 한 번에 깔리고 <b>claude</b>·<b>codex</b> 명령이 바로 실행됩니다. <b>②로그인</b>만 터미널에서 한 줄씩 직접 합니다.</p>
+  <p class="lead"><b>한 줄</b>을 터미널에 붙여 넣으면 수업 프로그램이 한 번에 깔리고 <b>claude</b>·<b>codex</b> 명령이 바로 실행됩니다. 파일을 받거나 압축을 풀지 않아 <b>"열지 않음"</b> 경고도 없습니다. <b>로그인</b>만 브라우저에서 직접 승인합니다.</p>
 
   <section class="step">
     <div class="num">0</div>
     <div>
-      <h2>받아서 압축 풀기</h2>
-      <p>라운지 → 수업자료 1주 → <b>원클릭 설치 프로그램(맥 zip)</b> 내려받기 → zip을 <b>더블클릭</b>하면 같은 자리에 <b>autofrog-setup-kit-mac</b> 폴더가 생깁니다.</p>
+      <h2>설치 명령 한 줄 복사</h2>
+      <p><b>autofrog.kr/kit</b> 에 들어가 <b>맥</b> 탭의 <b>[복사]</b>를 누릅니다. <span class="s">(라운지 도구 카드의 [복사] 도 같습니다. 직접 칠 때는 띄어쓰기까지 그대로)</span></p>
+      <div class="cmdline">curl -fsSL https://autofrog.kr/kit.sh | bash</div>
     </div>
   </section>
 
   <section class="step main">
     <div class="num">1</div>
     <div>
-      <h2><code>1-install.command</code> 더블클릭 → 기다리기</h2>
+      <h2><span class="kbd">⌘</span> + <span class="kbd">Space</span> → "터미널" → 붙여넣기 → <span class="kbd">Enter</span> → 기다리기</h2>
       <ul>
-        <li><b>"1-install.command을(를) 열지 않음"</b> → <b>완료</b> → <b>시스템 설정 → 개인정보 보호 및 보안</b> → 아래쪽 <b>그래도 열기</b> → 맥 암호.</li>
-        <li><b>터미널이 다운로드 폴더에 접근하려고 합니다</b> → <b>허용</b>.</li>
-        <li><b>명령어 라인 개발자 도구가 필요합니다</b> → <b>설치</b> → <b>동의</b>. 끝나면 터미널이 저절로 이어 갑니다(Git이 여기 들어 있음).</li>
-        <li>VS Code가 켜져 있으면 저장 후 <span class="kbd">Enter</span> → 닫고 이어서 설치합니다.</li>
+        <li><b>"명령어 라인 개발자 도구가 필요합니다"</b> 창이 뜨면 <b>설치</b> → <b>동의</b>. 끝나면 터미널이 저절로 이어 갑니다(Git이 여기 들어 있음).</li>
+        <li>VS Code가 켜져 있으면 저장하고 닫으라고 묻습니다. <span class="kbd">Enter</span> 를 누르면 닫고 이어서 설치합니다.</li>
       </ul>
       <div class="tools">
         <span>Git <i>개발자 도구</i></span><span>Node.js <i>24</i></span><span>GitHub CLI</span><span>Supabase CLI</span>
         <span>VS Code <i>+한국어</i></span><span>Vercel CLI</span><span>클로드 코드</span><span>코덱스</span>
       </div>
-      <div class="ok">끝나면 버전 표가 나오고 VS Code가 저절로 열립니다. <b>10줄 모두 [ OK ]</b>면 성공. 여러 번 눌러도 괜찮습니다.</div>
+      <div class="ok">끝나면 버전 표가 나오고 VS Code가 저절로 열립니다. <b>10줄 모두 [ OK ]</b>면 성공. [실패] 줄은 캡처해(<span class="kbd">⌘</span>+<span class="kbd">Shift</span>+<span class="kbd">4</span>) <b>클로드 대화창</b>에 붙여 넣으세요. 같은 한 줄을 다시 실행하면 실패한 것만 다시 합니다.</div>
     </div>
   </section>
 
   <section class="step main">
     <div class="num">2</div>
     <div>
-      <h2>터미널 창에서 한 줄씩 로그인</h2>
-      <p><span class="kbd">⌘</span>+<span class="kbd">Space</span> → <b>터미널</b>을 새로 열고 아래 명령을 <b>한 번씩</b> 입력합니다. 브라우저가 열리면 승인하고 돌아오세요.</p>
+      <h2>"이어서 로그인할까요?" → <span class="kbd">Enter</span></h2>
+      <p>아래 순서로 하나씩 물어봅니다. 브라우저가 열리면 로그인·승인하고 터미널로 돌아오세요. <span class="s">지금 못 하면 나중에 새 터미널 창에서 <b>autofrog-login</b> 을 입력하면 남은 것만 다시 묻습니다.</span></p>
       <table class="login">
-        <tr><th><code>claude</code></th><td>클로드가 바로 실행되는지 확인 → 로그인 화면이 나오면 안내대로. 끝나면 <b>/exit</b>. <span class="s">(코덱스를 쓰면 <b>codex</b>)</span></td></tr>
-        <tr><th><code>gh auth login</code></th><td>묻는 말은 <span class="kbd">Enter</span> 만 계속 누르면 됩니다 → 화면의 <b>8자리 코드</b>를 열린 브라우저에 입력하고 승인.</td></tr>
-        <tr><th><code>vercel login</code></th><td>브라우저가 열리면 <b>Continue with GitHub</b>.</td></tr>
-        <tr><th><code>supabase login</code></th><td>브라우저의 확인 코드를 복사해 붙여 넣고 <span class="kbd">Enter</span>. <span class="s">붙여 넣어도 화면에 안 보이는 게 정상입니다.</span></td></tr>
+        <tr><th>코덱스 · 클로드</th><td>ChatGPT / 클로드 계정으로 로그인. 클로드는 로그인이 끝나면 <b>/exit</b> 를 입력해 나옵니다.</td></tr>
+        <tr><th>GitHub</th><td>화면의 <b>8자리 코드</b>가 자동 복사됩니다 → <span class="kbd">Enter</span> → 열린 브라우저에 붙여 넣고(<span class="kbd">⌘</span>+<span class="kbd">V</span>) 승인.</td></tr>
+        <tr><th>Vercel</th><td>브라우저가 열리면 <b>Continue with GitHub</b>.</td></tr>
+        <tr><th>Supabase</th><td>브라우저의 확인 코드(8자리)를 복사해 붙여 넣고 <span class="kbd">Enter</span>. <span class="s">붙여 넣어도 화면에 안 보이는 게 정상입니다.</span></td></tr>
       </table>
-      <p class="s" style="margin-top:1.2mm"><b>2-login.command</b>를 더블클릭해도 같은 순서로 물어봅니다.</p>
-      <div class="note"><b>에러가 나면</b> ① 화면을 캡처해(<span class="kbd">⌘</span>+<span class="kbd">Shift</span>+<span class="kbd">4</span>) <b>클로드 대화창에 붙여 넣고 "이거 해결해 줘"</b>. ② <b>1-install.command 가 안 열리면</b> 터미널에 <b>bash</b> 와 빈칸 하나를 치고, 파일을 터미널 창에 끌어다 놓은 뒤 <span class="kbd">Enter</span>. ③ 회사 <b>클로드 팀 계정</b>은 팀 관리자가 내 계정을 승인해야 로그인됩니다.</div>
+      <div class="note"><b>에러가 나면</b> 에러 화면을 그대로 캡처해(<span class="kbd">⌘</span>+<span class="kbd">Shift</span>+<span class="kbd">4</span>) <b>클로드 대화창에 붙여 넣고 "이거 해결해 줘"</b> → 알려 주는 대로 따라 하면 대부분 해결됩니다.<br><b>"열지 않음"</b> 창은 예전 방식(zip 의 <b>1-install.command</b>)에서만 뜹니다 — 이 한 줄로 다시 하세요. 회사 <b>클로드 팀 계정</b>은 팀 관리자가 내 계정을 승인해야 로그인됩니다.</div>
     </div>
   </section>
 
@@ -106,12 +103,12 @@
     <div class="num">3</div>
     <div>
       <h2>시작하기</h2>
-      <p>VS Code → <b>파일 → 폴더 열기</b>로 작업 폴더를 열고 → <b>터미널 → 새 터미널</b>에서 <code style="font-family:'SF Mono',Menlo,monospace;font-weight:700;color:var(--grn)">cx</code> (코덱스) 또는 <code style="font-family:'SF Mono',Menlo,monospace;font-weight:700;color:var(--grn)">cc</code> (클로드)를 입력하면 확인 창 없이 바로 시작합니다. <span class="s">확인 없이 파일을 고치므로 연습 폴더에서 쓰세요.</span></p>
+      <p>VS Code → <b>파일 → 폴더 열기</b>로 작업 폴더를 열고 → <b>터미널 → 새 터미널</b>에서 <code style="font-family:Consolas,monospace;font-weight:700;color:var(--grn)">cx</code> (코덱스) 또는 <code style="font-family:Consolas,monospace;font-weight:700;color:var(--grn)">cc</code> (클로드)를 입력하면 확인 창 없이 바로 시작합니다. <span class="s">확인 없이 파일을 고치므로 연습 폴더에서 쓰세요.</span></p>
     </div>
   </section>
 
   <footer>
-    <div><b>막히면</b> 홈 폴더의 <b>autofrog-kit-logs</b> 폴더를 통째로 질문 게시판에 올려 주세요.</div>
+    <div><b>막히면</b> 기록 폴더 <b>홈 폴더/autofrog-kit-logs</b> 를 통째로 질문 게시판에 올려 주세요.</div>
     <div style="text-align:right;white-space:nowrap">문의 <b>010-2598-3723</b></div>
   </footer>
 </div>

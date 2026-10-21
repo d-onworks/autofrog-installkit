@@ -1,6 +1,6 @@
 # Windows 설치 키트 E2E — 최신 결과
 
-[2026-10-21 한 줄 설치(PowerShell) r3 — S1·S2 PASS](20261021-oneliner-r3/summary.md)
+[2026-10-21 한 줄 설치(PowerShell) r4 최종 — S1·S2 PASS](20261021-oneliner-r4/summary.md) · [r3 상세](20261021-oneliner-r3/summary.md)
 
 이전(zip·1-install.bat 방식):
 

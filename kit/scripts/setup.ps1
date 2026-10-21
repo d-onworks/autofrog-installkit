@@ -530,7 +530,7 @@ if ($allOk) {
     if ($loginShortcut) {
         Write-Host '  다음 단계: 로그인 — 바탕화면의 [오토프로그 로그인] 아이콘을 두 번 누르세요.' -ForegroundColor White
     } else {
-        Write-Host '  다음 단계: 로그인 — 같은 폴더의 [2-login.bat] 을 더블클릭하세요.' -ForegroundColor White
+        Write-Host '  다음 단계: 로그인 — autofrog.kr/kit 의 한 줄을 다시 실행하면 이어서 물어봅니다.' -ForegroundColor White
     }
 } else {
     Write-Host '  일부 설치가 안 됐습니다. 위 [실패] 줄과 아래 기록 파일을 강사에게 보여 주세요.' -ForegroundColor Yellow

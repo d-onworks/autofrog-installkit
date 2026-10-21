@@ -139,6 +139,10 @@ def build_mac():
             zi.external_attr = (0o100000 | mode) << 16
             z.writestr(zi, data)
     print(f"완성: {zpath}  ({zpath.stat().st_size / 1e3:.0f} KB)\nsha256 {sha256(zpath)}")
+    # 맥 한 줄 설치 스크립트 — 같은 릴리즈에 install.sh 이름 그대로(autofrog.kr/kit.sh 가 여기로 넘긴다). curl 은 바이트 그대로라 한글 OK.
+    boot = DIST / "install.sh"
+    boot.write_bytes((HERE / "bootstrap" / "install.sh").read_bytes().replace(b"\r\n", b"\n"))
+    print(f"한 줄 설치: {boot}  sha256 {sha256(boot)}")
 
 
 def main():

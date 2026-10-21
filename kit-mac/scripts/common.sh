@@ -40,7 +40,7 @@ write_path_block() {
     local f tmp
     local block
     block="$PATH_BEGIN
-# 이 블록은 1-install.command 가 관리합니다. 지우면 claude·codex 명령을 못 찾습니다.
+# 이 블록은 오토프로그 설치 키트가 관리합니다. 지우면 claude·codex 명령을 못 찾습니다.
 for d in \"\$HOME/.local/bin\" \"\$HOME/.npm-global/bin\" \"\$HOME/.autofrog-kit/node/bin\" \"\$HOME/.autofrog-kit/bin\"; do
   case \":\$PATH:\" in *\":\$d:\"*) ;; *) PATH=\"\$d:\$PATH\" ;; esac
 done

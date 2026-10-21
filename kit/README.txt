@@ -1,5 +1,10 @@
 오토프로그 바이브코딩 설치 키트 (윈도우 10/11 64비트)
 
+※ 더 쉬운 방법(권장): 압축을 풀지 말고 Win+R 에 아래 한 줄을 붙여 넣고 Enter
+     powershell -ExecutionPolicy Bypass -c "irm https://autofrog.kr/kit.ps1 | iex"
+  새 PC 에서 "스마트 앱 컨트롤이 차단했습니다" 창이 뜨며 1-install.bat 이 안 열릴 때도 이 방법으로 하세요.
+  (또는 zip 을 마우스 오른쪽 → 속성 → [차단 해제] 체크 → 확인 뒤에 압축을 다시 풀기)
+
 ※ 설치하면서 공식 배포처에서 프로그램을 내려받습니다. 인터넷이 연결된 상태에서 실행하세요.
   끝나면 VS Code 가 저절로 열립니다.
 
@@ -8,7 +13,8 @@
    - 파란 "Windows의 PC 보호" 창이 뜨면 [추가 정보] → [실행]
    - VS Code 가 켜져 있으면 저장하고 닫으라고 물어봅니다
    - 끝나면 버전 표가 나오고, 전부 [ OK ] 면 성공
-3. [2-login.bat] 더블클릭 → 코덱스·클로드·GitHub·Vercel·Supabase 순서로 브라우저 로그인
+3. 바탕화면 [오토프로그 로그인] 아이콘(또는 [2-login.bat]) 더블클릭
+   → 코덱스·클로드·GitHub·Vercel·Supabase 순서로 브라우저 로그인
 
 설치되는 것: Git, Node.js 24, GitHub CLI, Supabase CLI, VS Code(+한국어·코덱스·클로드 확장),
             Vercel CLI, 클로드 코드, 코덱스

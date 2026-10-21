@@ -1,7 +1,8 @@
 # 오토프로그 설치 키트 — 로그인 마법사
 # 브라우저 승인은 사람이 직접 한다. 이 스크립트는 순서를 잡아 주고, 됐는지 확인만 한다.
 # -CheckOnly : 로그인 상태 표만 보여 준다(아무것도 실행하지 않음 — 점검·E2E 용)
-param([switch]$CheckOnly)
+# -Pause     : 끝나면 Enter 를 기다린다(바탕화면 '오토프로그 로그인' 아이콘으로 열 때 창이 바로 닫히지 않게)
+param([switch]$CheckOnly, [switch]$Pause)
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
@@ -101,4 +102,5 @@ if ($state.supabase -eq $false -and (Ask 'Supabase 에 로그인할까요?')) {
 Write-Title '로그인 결과'
 $final = Show-Table
 Write-Host ''
-Write-Host '  [ -- ] 로 남은 곳은 이 파일을 다시 실행하면 그것만 다시 물어봅니다.' -ForegroundColor White
+Write-Host '  [ -- ] 로 남은 곳은 바탕화면 [오토프로그 로그인] 아이콘을 다시 누르면 그것만 다시 물어봅니다.' -ForegroundColor White
+if ($Pause) { Write-Host ''; [void](Read-Host '  Enter 를 누르면 창이 닫힙니다') }

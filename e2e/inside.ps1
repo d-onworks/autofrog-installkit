@@ -1,4 +1,4 @@
-﻿param([ValidateSet('Boot','Worker')][string]$Mode='Boot',[ValidateSet('S1','S2')][string]$Scenario='S1')
+﻿param([ValidateSet('Boot','Worker')][string]$Mode='Boot',[ValidateSet('S1','S2')][string]$Scenario='S1',[ValidateSet('Zip','OneLiner')][string]$Method='Zip')
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
 $Base='C:\e2e'
@@ -56,6 +56,23 @@ function Run-VisibleInstall([string]$Bat,[string]$Label) {
     Save-Json $result "$prefix.process.json"
     return $result
 }
+function Run-VisibleOneLiner([string]$Label) {
+    $prefix=Join-Path $Out $Label
+    $args='-NoProfile -ExecutionPolicy Bypass -File C:\e2e\visible-oneliner.ps1 -Prefix "'+$prefix+'" -Scenario '+$Scenario+' -Label '+$Label
+    $p=Start-Process powershell.exe -WindowStyle Maximized -PassThru -ArgumentList $args
+    $deadline=(Get-Date).AddMinutes(25)
+    while (-not $p.WaitForExit(2000) -and (Get-Date) -lt $deadline) {
+        $logdir=Join-Path $env:USERPROFILE 'autofrog-kit-logs'
+        $latest=Get-ChildItem $logdir -Filter 'setup-*.log' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($latest) { try { Copy-Item $latest.FullName "$prefix.live-setup.log" -Force -ErrorAction Stop } catch {} }
+        Save-Json @{pid=$p.Id;time=(Get-Date).ToString('o')} "$prefix.live.json"
+    }
+    if (-not $p.HasExited) { & taskkill.exe /PID $p.Id /T /F 2>&1 | Out-Null; $p.WaitForExit() }
+    $result=@{exit=$p.ExitCode;timeout=$true;sec=$null}
+    if (Test-Path "$prefix.exit.json") { $result=Get-Content "$prefix.exit.json" -Raw -Encoding UTF8 | ConvertFrom-Json }
+    Save-Json $result "$prefix.process.json"
+    return $result
+}
 function Run-VisibleChecks {
     $savedPath=$env:PATH;$savedPolicy=$env:PSExecutionPolicyPreference
     try {
@@ -94,8 +111,9 @@ try {
         Set-Phase 'sandbox-boot'
         Save-Json ([ordered]@{os=(Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber); memory=(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory; winget=([bool](Get-Command winget -ErrorAction SilentlyContinue)); explorer=@(Get-Process explorer -ErrorAction SilentlyContinue | Select-Object Id,SessionId)}) (Join-Path $Out 'sandbox.json')
         $monitor=Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -File C:\e2e\screen-monitor.ps1 -Scenario '+$Scenario)
+        if ($Method -eq 'OneLiner') { $server=Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -File C:\e2e\serve.ps1 -Scenario '+$Scenario); Start-Sleep 3 }
         if ($Scenario -eq 'S2') { $mirror=Start-Process powershell.exe -WindowStyle Maximized -PassThru -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File C:\e2e\mirror-console.ps1 -Scenario S2' }
-        if ($Scenario -eq 'S1') { & $PSCommandPath -Mode Worker -Scenario S1 }
+        if ($Scenario -eq 'S1') { & $PSCommandPath -Mode Worker -Scenario S1 -Method $Method }
         else {
             Set-Phase 'create-standard-user'
             # Random temporary password exists only in this process and the disposable SAM.
@@ -106,7 +124,7 @@ try {
             & icacls.exe C:\e2e /grant '*S-1-5-32-545:(OI)(CI)M' /T /Q | Out-Null
             $cred=New-Object Management.Automation.PSCredential("$env:COMPUTERNAME\수강생",$secure)
             Set-Phase 'launch-standard-profile'
-            $p=Start-Process -FilePath "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -Credential $cred -LoadUserProfile -PassThru -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File C:\e2e\inside.ps1 -Mode Worker -Scenario S2'
+            $p=Start-Process -FilePath "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -Credential $cred -LoadUserProfile -PassThru -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -File C:\e2e\inside.ps1 -Mode Worker -Scenario S2 -Method '+$Method)
             $password=$null; $secure=$null; $cred=$null
             if (-not $p.WaitForExit(40*60*1000)) { throw 'Standard-user worker exceeded 40 minutes' }
             Save-Json @{exit=$p.ExitCode} (Join-Path $Out 'standard-launch.json')
@@ -134,25 +152,35 @@ try {
     Save-Json $profile (Join-Path $Out 'profile.json')
     if ($Scenario -eq 'S2' -and ($admin -or $id.Name -notmatch '수강생$')) { throw 'Standard-user identity/admin prerequisite failed' }
     if ($Scenario -eq 'S2' -and $env:USERPROFILE -match 'WDAGUtilityAccount') { throw 'Alternate credential process inherited WDAG profile; refusing misleading test' }
-    Set-Phase 'desktop-extract'
-    $desktop=[Environment]::GetFolderPath('Desktop');New-Item -ItemType Directory -Force $desktop | Out-Null
-    $zip=Join-Path $desktop 'autofrog-setup-kit-20261016.zip'
-    Set-Phase 'copy-zip-to-desktop'
-    Copy-Item (Join-Path $Base 'kit.zip') $zip -Force
-    Set-Phase 'mark-zip-motw'
-    Set-Content -LiteralPath $zip -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3" -Encoding ASCII
-    $zone=[string]::Join("`n",[string[]]@(Get-Content -LiteralPath $zip -Stream Zone.Identifier -Encoding ASCII))
-    $extract=Join-Path $desktop 'autofrog-e2e-extracted'
-    Set-Phase 'expand-desktop-zip'
-    $sw=[Diagnostics.Stopwatch]::StartNew(); Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force; $sw.Stop()
-    $bat=Get-ChildItem $extract -Recurse -Filter '1-install.bat' | Select-Object -First 1
-    if (-not $bat) { throw 'Installer batch absent after extraction' }
-    $kit=$bat.Directory.FullName
-    Set-Phase 'inspect-extracted-motw'
-    $zones=@(Get-ChildItem $kit -Recurse -File | ForEach-Object { if (Get-Item -LiteralPath $_.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue) { $_.FullName } })
-    Save-Json @{zipZone=$zone;extractSec=$sw.Elapsed.TotalSeconds;extractedZoneFiles=$zones;kit=$kit;zipSHA256=(Get-FileHash $zip -Algorithm SHA256).Hash} (Join-Path $Out 'extraction.json')
-    Set-Phase 'install-1'
-    $r1=Run-VisibleInstall $bat.FullName 'install-1'
+    if ($Method -eq 'OneLiner') {
+        Set-Phase 'oneliner-1'
+        $r1=Run-VisibleOneLiner 'install-1'
+        $kit=Join-Path $env:LOCALAPPDATA 'AutoFrogKit\kit'
+        $zones=@(Get-ChildItem $kit -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { if (Get-Item -LiteralPath $_.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue) { $_.FullName } })
+        $lnkPath=Join-Path ([Environment]::GetFolderPath('Desktop')) '오토프로그 로그인.lnk'
+        $lnk=$null; if (Test-Path $lnkPath) { $sc=(New-Object -ComObject WScript.Shell).CreateShortcut($lnkPath); $lnk=[ordered]@{target=$sc.TargetPath;arguments=$sc.Arguments;lnkZone=[bool](Get-Item -LiteralPath $lnkPath -Stream Zone.Identifier -ErrorAction SilentlyContinue)} }
+        Save-Json @{kit=$kit;kitFiles=@(Get-ChildItem $kit -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName.Substring($kit.Length) });extractedZoneFiles=$zones;loginShortcut=$lnk} (Join-Path $Out 'extraction.json')
+    } else {
+        Set-Phase 'desktop-extract'
+        $desktop=[Environment]::GetFolderPath('Desktop');New-Item -ItemType Directory -Force $desktop | Out-Null
+        $zip=Join-Path $desktop 'autofrog-setup-kit-20261016.zip'
+        Set-Phase 'copy-zip-to-desktop'
+        Copy-Item (Join-Path $Base 'kit.zip') $zip -Force
+        Set-Phase 'mark-zip-motw'
+        Set-Content -LiteralPath $zip -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3" -Encoding ASCII
+        $zone=[string]::Join("`n",[string[]]@(Get-Content -LiteralPath $zip -Stream Zone.Identifier -Encoding ASCII))
+        $extract=Join-Path $desktop 'autofrog-e2e-extracted'
+        Set-Phase 'expand-desktop-zip'
+        $sw=[Diagnostics.Stopwatch]::StartNew(); Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force; $sw.Stop()
+        $bat=Get-ChildItem $extract -Recurse -Filter '1-install.bat' | Select-Object -First 1
+        if (-not $bat) { throw 'Installer batch absent after extraction' }
+        $kit=$bat.Directory.FullName
+        Set-Phase 'inspect-extracted-motw'
+        $zones=@(Get-ChildItem $kit -Recurse -File | ForEach-Object { if (Get-Item -LiteralPath $_.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue) { $_.FullName } })
+        Save-Json @{zipZone=$zone;extractSec=$sw.Elapsed.TotalSeconds;extractedZoneFiles=$zones;kit=$kit;zipSHA256=(Get-FileHash $zip -Algorithm SHA256).Hash} (Join-Path $Out 'extraction.json')
+        Set-Phase 'install-1'
+        $r1=Run-VisibleInstall $bat.FullName 'install-1'
+    }
     $logs=Join-Path $env:USERPROFILE 'autofrog-kit-logs'
     if (Test-Path "$logs\result-latest.json") { Copy-Item "$logs\result-latest.json" (Join-Path $Out 'result-first.json') -Force }
     Config-Snapshot 'after-first'
@@ -174,10 +202,15 @@ try {
     while (-not (Test-Path (Join-Path $Out 'explorer-complete.txt')) -and (Get-Date) -lt $deadline) { Start-Sleep 2 }
     Save-Json @{completed=(Test-Path (Join-Path $Out 'explorer-complete.txt'));requestedIdentity=$id.Name;launcherPid=$exp.Id;arguments=$explorerArgs} (Join-Path $Out 'explorer.json')
     Set-Phase 'login-check'
-    $login=Run-Process $env:ComSpec ('/d /c ""'+(Join-Path $kit '2-login.bat')+'" /check"') (Join-Path $Out 'login') 180
+    if ($Method -eq 'OneLiner') {
+        # 바탕화면 아이콘이 가리키는 그대로(-Pause 대신 -CheckOnly)
+        $login=Run-Process $lnk.target ($lnk.arguments -replace '-Pause$','-CheckOnly') (Join-Path $Out 'login') 180
+    } else {
+        $login=Run-Process $env:ComSpec ('/d /c ""'+(Join-Path $kit '2-login.bat')+'" /check"') (Join-Path $Out 'login') 180
+    }
     if (Test-Path "$logs\login-latest.json") { Copy-Item "$logs\login-latest.json" (Join-Path $Out 'login-latest.json') -Force }
     Set-Phase 'install-2'
-    $r2=Run-VisibleInstall $bat.FullName 'install-2'
+    if ($Method -eq 'OneLiner') { $r2=Run-VisibleOneLiner 'install-2' } else { $r2=Run-VisibleInstall $bat.FullName 'install-2' }
     if (Test-Path "$logs\result-latest.json") { Copy-Item "$logs\result-latest.json" (Join-Path $Out 'result-second.json') -Force }
     Config-Snapshot 'after-second'
     if (Test-Path $logs) { Copy-Item $logs (Join-Path $Out 'autofrog-kit-logs') -Recurse -Force }

@@ -2,7 +2,7 @@
 
 **코딩을 처음 하는 분이 클로드 코드(Claude Code)나 코덱스(Codex)를 쓰기 위해 필요한 프로그램을 한 번에 설치하는 패키지입니다.**
 
-압축을 풀고 `1-install.bat` 하나만 더블클릭하면 아래 프로그램의 **최신 안정판을 공식 배포처에서 내려받아** 순서대로 깔고,
+**PowerShell 한 줄**을 붙여 넣으면 아래 프로그램의 **최신 안정판을 공식 배포처에서 내려받아** 순서대로 깔고,
 마지막에 VS Code 까지 열어 줍니다. 새 PowerShell 창이나 VS Code 터미널에서 `claude` · `codex` 명령이 바로 실행됩니다.
 관리자 권한 없이 내 계정 폴더에만 설치합니다. 로그인만 직접 하면 됩니다.
 
@@ -18,21 +18,43 @@
 
 윈도우 10 · 11 (64비트) 대상입니다.
 
-## 쓰는 법
+## 쓰는 법 (윈도우)
 
-1. **[설치 파일 받기 (autofrog-setup-kit.zip)](https://github.com/d-onworks/autofrog-installkit/releases/latest/download/autofrog-setup-kit.zip)** — 50KB 남짓
-   - 이 페이지의 초록색 `Code` → `Download ZIP` 으로 받은 것은 쓰지 마세요(윈도우용 글자 형식으로 묶이지 않아 한글이 깨집니다)
-2. 받은 zip 을 마우스 오른쪽 클릭 → **모두 압축 풀기** (zip 안에서 바로 실행하지 마세요)
-3. **`1-install.bat`** 더블클릭 → 기다리기 (인터넷 속도에 따라 5~15분, 인터넷 연결 필요)
-   - 파란 "Windows의 PC 보호" 창이 뜨면 **추가 정보 → 실행**
-   - 끝나면 버전 표가 나오고 VS Code 가 열립니다. **10줄 모두 `[ OK ]`** 면 성공
-4. **PowerShell 창에서 한 줄씩 로그인** — `claude`(또는 `codex`) · `gh auth login` · `vercel login` · `supabase login`
-   - `2-login.bat` 을 더블클릭해도 같은 순서로 물어봅니다
-5. VS Code 에서 작업 폴더를 열고 터미널에 `cx`(코덱스) 또는 `cc`(클로드) — 확인 창 없이 바로 시작합니다.
+1. 키보드 `Win` + `R` → 아래 한 줄을 붙여 넣고 Enter (안내 페이지: [autofrog.kr/kit](https://autofrog.kr/kit))
+
+   ```text
+   powershell -ExecutionPolicy Bypass -c "irm https://autofrog.kr/kit.ps1 | iex"
+   ```
+
+   - `autofrog.kr/kit.ps1` 은 이 저장소 최신 릴리즈의 `install.ps1` 로 넘겨줍니다. 같은 것을 직접 쓰려면
+     `irm https://github.com/d-onworks/autofrog-installkit/releases/latest/download/install.ps1 | iex`
+2. 기다리기 (인터넷 속도에 따라 5~15분). 끝나면 버전 표가 나오고 VS Code 가 열립니다. **10줄 모두 `[ OK ]`** 면 성공
+3. "이어서 로그인할까요?" → Enter — 코덱스 · 클로드 · GitHub · Vercel · Supabase 순서로 물어봅니다
+   - 나중에 하려면 바탕화면 **[오토프로그 로그인]** 아이콘을 두 번 누르면 남은 것만 다시 묻습니다
+4. VS Code 에서 작업 폴더를 열고 터미널에 `cx`(코덱스) 또는 `cc`(클로드) — 확인 창 없이 바로 시작합니다.
    확인 없이 파일을 고치므로 연습 폴더에서 쓰세요.
 
 **에러가 나면** — PC마다 보안 설정이 달라 에러가 날 수 있습니다. 에러 화면을 그대로 캡처해(`Win`+`Shift`+`S`)
 클로드 대화창에 붙여 넣고 "이거 해결해 줘" 하면 대부분 해결됩니다. 기록 파일은 `C:\Users\내 이름\autofrog-kit-logs` 에 남습니다.
+
+### 왜 zip 이 아니라 한 줄인가 (2026-10-21)
+
+예전에는 zip 을 받아 `1-install.bat` 을 더블클릭했습니다. 그런데 새로 산 PC · 포맷한 PC 는 윈도우 11 의
+**스마트 앱 컨트롤**이 몇 주 지켜본 뒤 저절로 켜지고, 켜지면 **브라우저로 받은 파일(인터넷 표시가 붙은 파일)** 중
+`.bat` 을 더블클릭할 때 막습니다. 끄는 것 말고는 "그래도 실행" 버튼이 없습니다.
+
+스마트 앱 컨트롤이 켜진 실제 PC 에서 시험한 결과(2026-10-21):
+
+| 띄운 것 | 결과 |
+|---|---|
+| 인터넷 표시가 **없는** `.bat` 더블클릭 | 실행됨 |
+| 인터넷 표시가 **있는** `.bat` 더블클릭 | **막힘** (CodeIntegrity 3033) |
+| `.ps1` 을 `powershell -File` 로 실행 (표시 있음·없음 둘 다) | 실행됨 (FullLanguage) |
+| 내 PC 에서 만든 바로가기 → PowerShell | 실행됨 |
+
+PowerShell 이 직접 받은 파일에는 인터넷 표시가 붙지 않습니다. 그래서 한 줄 설치는 설정을 하나도 바꾸지 않고
+스마트 앱 컨트롤을 지나갑니다. zip(`autofrog-setup-kit.zip`)은 같은 릴리즈에 계속 올리고, 한 줄 설치가 이것을 받아 씁니다.
+zip 을 직접 받아 쓰려면 zip 을 마우스 오른쪽 → 속성 → **차단 해제** 체크 → 확인 뒤에 압축을 푸세요.
 
 A4 한 장 매뉴얼: [`manual/`](manual/)
 
@@ -71,7 +93,7 @@ Supabase CLI 를 npm 으로 깔다 실패하는 문제를 한 번에 막도록 �
 ## 직접 zip 만들기
 
 ```bash
-python3 build.py --online   # → dist/autofrog-setup-kit.zip            온라인판(공개 배포용, 스크립트만)
+python3 build.py --online   # → dist/autofrog-setup-kit.zip + dist/install.ps1  온라인판 + 한 줄 설치(공개 배포용, 릴리즈에 둘 다 올린다)
 python3 build.py            # → dist/autofrog-setup-kit-YYYYMMDD.zip   설치 파일 동봉판(수업용, 약 590MB)
 ```
 
@@ -92,6 +114,7 @@ python3 build.py            # → dist/autofrog-setup-kit-YYYYMMDD.zip   설치 
 
 | 폴더 | 내용 |
 |---|---|
+| `bootstrap/install.ps1` | 윈도우 한 줄 설치 — 릴리즈의 zip 을 받아 `%LOCALAPPDATA%\AutoFrogKit\kit` 에 풀고 설치·로그인까지 이어 준다 |
 | `kit/` | 사용자에게 가는 파일 — `1-install.bat` · `2-login.bat` · `README.txt` · `scripts/*.ps1` |
 | `kit-mac/` | 맥판 — `1-install.command` · `2-login.command` · `README.txt` · `scripts/*.sh` (맥 기본 bash 3.2) |
 | `build.py` | 최신판 내려받기 + zip 만들기 |

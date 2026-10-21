@@ -1,5 +1,10 @@
 # Windows 설치 키트 E2E — 최신 결과
 
+[2026-10-21 한 줄 설치(PowerShell) r3 — S1·S2 PASS](20261021-oneliner-r3/summary.md)
+
+이전(zip·1-install.bat 방식):
+
+
 [3회차 최종 상세 보고서](20261016-r3-capture-retry/summary.md)
 
 지정 SHA256 f137649461287c8ccf16065da6623ed402557dd225c734d67b7dd080d5d79b37 ZIP으로 추가 검사 S1·S2 모두 PASS. 첫 실행에서 화면 캡처가 불충분해 하네스만 수정하고 같은 ZIP으로 재검증 1회 수행했다. 키트 추가 수정·재빌드 없음.

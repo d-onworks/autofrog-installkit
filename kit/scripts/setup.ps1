@@ -2,7 +2,8 @@
 # 순서: 사전점검 → Git → Node.js → GitHub CLI·Supabase CLI → VS Code → PATH → 실행정책
 #       → Vercel CLI → 클로드 코드 → 코덱스(+확인 없이 바로 실행 설정) → VS Code 설정 → 버전 표 검증
 # 관리자 권한 없이 돌아가게 짰다(전부 내 계정 폴더에 설치). PowerShell 5.1 호환, UTF-8(BOM) 저장.
-param([switch]$Auto)
+# -OneLiner : 한 줄 설치(bootstrap/install.ps1)가 불렀다 — 끝나면 이어서 로그인할지 묻고, 창이 바로 닫히지 않게 Enter 를 기다린다
+param([switch]$Auto, [switch]$OneLiner)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -478,6 +479,32 @@ foreach ($k in $labels.Keys) {
 
 if ($Online) { Clear-OnlineDownloads }
 
+# 바탕화면 '오토프로그 로그인' 아이콘 — 2-login.bat 대신. 내 PC 에서 만든 바로가기와 .ps1 은
+# 스마트 앱 컨트롤이 막지 않는다(인터넷 표시가 붙은 .bat 만 막는다 · 2026-10-21 실측).
+# zip 에서 풀었으면 풀린 폴더를 지워도 되게 스크립트를 내 계정 폴더로 복사해 둔다.
+$loginShortcut = $null
+try {
+    $kitScripts = Join-Path $script:KitHome 'kit\scripts'
+    if ((Resolve-Path $PSScriptRoot).Path.TrimEnd('\') -ne $kitScripts) {
+        New-Item -ItemType Directory -Force $kitScripts | Out-Null
+        Copy-Item (Join-Path $PSScriptRoot '*.ps1') $kitScripts -Force
+        Get-ChildItem $kitScripts -File | Unblock-File -ErrorAction SilentlyContinue
+    }
+    $desk = [Environment]::GetFolderPath('Desktop')
+    if ($desk) {
+        $loginShortcut = Join-Path $desk '오토프로그 로그인.lnk'
+        $sc = (New-Object -ComObject WScript.Shell).CreateShortcut($loginShortcut)
+        $sc.TargetPath = Join-Path $PSHOME 'powershell.exe'
+        $sc.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $kitScripts 'login.ps1') + '" -Pause'
+        $sc.WorkingDirectory = $env:USERPROFILE
+        $sc.Description = '오토프로그 설치 키트 — 클로드·코덱스·GitHub·Vercel·Supabase 로그인'
+        $sc.Save()
+    }
+} catch {
+    Write-Warn2 "바탕화면 로그인 아이콘을 만들지 못했습니다: $($_.Exception.Message)"
+    $loginShortcut = $null
+}
+
 # 새 PATH 를 물려받은 VS Code 를 이 창에서 띄운다(이미 켜진 VS Code 는 옛 PATH 를 쓴다)
 $openedCode = $false
 $code = Find-CodeCmd
@@ -489,7 +516,7 @@ if ($code -and -not (Get-Process -Name Code -ErrorAction SilentlyContinue)) {
 
 $report = [ordered]@{
     kit = $Manifest.built; online = $Online; finished = (Get-Date).ToString('s'); user = $env:USERNAME
-    allOk = $allOk; openedCode = $openedCode
+    allOk = $allOk; openedCode = $openedCode; loginShortcut = $loginShortcut
     installers = @($script:Installers.Keys | ForEach-Object { [ordered]@{ key = $_; version = $script:Installers[$_].Version } })
     steps = $Results; verify = $verified
 }
@@ -500,10 +527,26 @@ Copy-Item $reportFile (Join-Path $script:LogDir 'result-latest.json') -Force
 Write-Host ''
 if ($allOk) {
     Write-Host '  모든 설치가 끝났습니다.' -ForegroundColor Green
-    Write-Host '  다음 단계: 같은 폴더의 [2-login.bat] 을 더블클릭하세요.' -ForegroundColor White
+    if ($loginShortcut) {
+        Write-Host '  다음 단계: 로그인 — 바탕화면의 [오토프로그 로그인] 아이콘을 두 번 누르세요.' -ForegroundColor White
+    } else {
+        Write-Host '  다음 단계: 로그인 — 같은 폴더의 [2-login.bat] 을 더블클릭하세요.' -ForegroundColor White
+    }
 } else {
     Write-Host '  일부 설치가 안 됐습니다. 위 [실패] 줄과 아래 기록 파일을 강사에게 보여 주세요.' -ForegroundColor Yellow
     Write-Host "  $logFile" -ForegroundColor Yellow
 }
 try { Stop-Transcript | Out-Null } catch {}
+if ($OneLiner -and -not $Auto) {
+    # Win+R 로 연 창은 끝나면 바로 닫힌다 — 로그인으로 이어 주고, 마지막엔 Enter 를 기다린다
+    if ($allOk) {
+        Write-Host ''
+        $a = Read-Host '  이어서 로그인할까요? (Enter = 예 / n = 나중에 바탕화면 [오토프로그 로그인] 아이콘으로)'
+        if ($a -notmatch '^(n|no|아니)') {
+            & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'login.ps1')
+        }
+    }
+    Write-Host ''
+    [void](Read-Host '  Enter 를 누르면 창이 닫힙니다')
+}
 if ($allOk) { exit 0 } else { exit 1 }

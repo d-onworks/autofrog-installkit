@@ -1,4 +1,4 @@
-﻿param([string]$RunId=(Get-Date -Format 'yyyyMMdd-HHmmss'),[string]$ZipPath='C:\AutoFrogE2E\autofrog-setup-kit-20261016.zip',[ValidateSet('S1','S2','Both')][string]$Scenario='Both',[int]$TimeoutMinutes=45)
+﻿param([string]$RunId=(Get-Date -Format 'yyyyMMdd-HHmmss'),[string]$ZipPath='C:\AutoFrogE2E\autofrog-setup-kit-20261016.zip',[ValidateSet('S1','S2','Both')][string]$Scenario='Both',[int]$TimeoutMinutes=45,[ValidateSet('Zip','OneLiner')][string]$Method='Zip')
 $ErrorActionPreference='Stop'
 $Root='C:\AutoFrogE2E'
 if ($ZipPath -notlike "$Root\*") { throw 'Zip must be staged under C:\AutoFrogE2E' }
@@ -21,14 +21,19 @@ if (-not $ready) { Save-Json @{status='BLOCKED';reason='No active 오토프로�
 & (Join-Path $PSScriptRoot 'cleanup.ps1') -ReportPath (Join-Path $RunRoot 'cleanup-before.json')
 if ($LASTEXITCODE -eq 3) { throw 'Sandbox VM cleanup failed; reboot prohibited' }
 $os=Get-CimInstance Win32_OperatingSystem
-Save-Json @{os=($os | Select-Object Caption,Version,BuildNumber);zipSHA256=(Get-FileHash $ZipPath -Algorithm SHA256).Hash;zipBytes=(Get-Item $ZipPath).Length} (Join-Path $RunRoot 'host.json')
+Save-Json @{method=$Method;os=($os | Select-Object Caption,Version,BuildNumber);zipSHA256=(Get-FileHash $ZipPath -Algorithm SHA256).Hash;zipBytes=(Get-Item $ZipPath).Length} (Join-Path $RunRoot 'host.json')
 $scenarios=@($Scenario); if ($Scenario -eq 'Both') { $scenarios=@('S1','S2') }
 $results=@()
 foreach ($s in $scenarios) {
     $dir=Join-Path $RunRoot $s; New-Item -ItemType Directory -Force $dir | Out-Null
-    foreach ($name in @('inside.ps1','probe.ps1','screen-monitor.ps1','visible-install.ps1','mirror-console.ps1','command-check.ps1')) { Copy-Item (Join-Path $PSScriptRoot $name) (Join-Path $dir $name) -Force }
-    Copy-Item $ZipPath (Join-Path $dir 'kit.zip') -Force
-    $start="@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\e2e\inside.ps1 -Scenario $s > C:\e2e\boot-console.log 2>&1`r`n"
+    foreach ($name in @('inside.ps1','probe.ps1','screen-monitor.ps1','visible-install.ps1','visible-oneliner.ps1','serve.ps1','mirror-console.ps1','command-check.ps1')) { Copy-Item (Join-Path $PSScriptRoot $name) (Join-Path $dir $name) -Force }
+    if ($Method -eq 'OneLiner') {
+        # 한 줄 설치: 시험 서버가 내보낼 install.ps1 + 온라인 키트 zip (C:\AutoFrogE2E\www 에 미리 올려 둔다)
+        New-Item -ItemType Directory -Force (Join-Path $dir 'www') | Out-Null
+        Copy-Item (Join-Path $Root 'www\install.ps1') (Join-Path $dir 'www\install.ps1') -Force
+        Copy-Item $ZipPath (Join-Path $dir 'www\autofrog-setup-kit.zip') -Force
+    } else { Copy-Item $ZipPath (Join-Path $dir 'kit.zip') -Force }
+    $start="@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\e2e\inside.ps1 -Scenario $s -Method $Method > C:\e2e\boot-console.log 2>&1`r`n"
     [IO.File]::WriteAllText((Join-Path $dir 'start.cmd'),$start,[Text.Encoding]::ASCII)
     $escaped=[Security.SecurityElement]::Escape($dir)
     $wsb=@"

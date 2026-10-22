@@ -26,6 +26,14 @@
    powershell -ExecutionPolicy Bypass -c "irm https://autofrog.kr/kit.ps1 | iex"
    ```
 
+   - **1번이 막히면 2번** — 어떤 PC 는 백신(Defender 포함)이 `irm … | iex` 한 줄을 "트로이 목마"로 보고 막습니다
+     (파란 창이 "액세스가 거부되었습니다"로 끝남). 2번은 받은 스크립트를 파일로 저장한 뒤 `-File` 로 실행해
+     같은 설치를 합니다(2026-10-22 대표 노트북에서 확인). Win+R 에도, 이미 열린 PowerShell 창에도 그대로 붙여 넣을 수 있습니다.
+
+     ```text
+     powershell -NoProfile -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\af.ps1"
+     ```
+
    - `autofrog.kr/kit.ps1` 은 이 저장소 최신 릴리즈의 `install.ps1` 로 넘겨줍니다. 같은 것을 직접 쓰려면
      `irm https://github.com/d-onworks/autofrog-installkit/releases/latest/download/install.ps1 | iex`
 2. 기다리기 (인터넷 속도에 따라 5~15분). 끝나면 버전 표가 나오고 VS Code 가 열립니다. **10줄 모두 `[ OK ]`** 면 성공
@@ -54,7 +62,17 @@
 
 PowerShell 이 직접 받은 파일에는 인터넷 표시가 붙지 않습니다. 그래서 한 줄 설치는 설정을 하나도 바꾸지 않고
 스마트 앱 컨트롤을 지나갑니다. zip(`autofrog-setup-kit.zip`)은 한 줄 설치가 안에서 받아 쓰는 꾸러미라 같은 릴리즈에 계속 올립니다.
-더블클릭용 `1-install.bat` · `2-login.bat` 은 없앴습니다(로그인은 바탕화면 [오토프로그 로그인] 아이콘).
+`2-login.bat` 은 없앴습니다(로그인은 바탕화면 [오토프로그 로그인] 아이콘).
+
+### 한 줄이 백신에 막히면 — zip 설치 (2026-10-22)
+
+1번·2번 한 줄이 모두 막히는 PC 를 위해 zip 에 `1-install.bat` 을 다시 넣었습니다. 한 줄 설치와 같은 `setup.ps1 -OneLiner` 를 부릅니다.
+
+1. [autofrog.kr/kit.zip](https://autofrog.kr/kit.zip) 받기 (= 최신 릴리즈의 `autofrog-setup-kit.zip`)
+2. 마우스 오른쪽 → [압축 풀기] → 풀린 폴더의 `1-install.bat` 더블클릭
+
+스마트 앱 컨트롤이 켜진 PC 는 이 `.bat` 을 막으니 한 줄 설치로 하세요 — 두 방법이 서로의 빈자리를 메웁니다.
+그래도 스마트 앱 컨트롤 때문에 막히면 클로드·코덱스 앱에 "스마트 앱 컨트롤 꺼 줘"라고 하면 됩니다(한 번 끄면 윈도우 재설치 전에는 다시 못 켭니다).
 
 A4 한 장 매뉴얼: [`manual/`](manual/)
 

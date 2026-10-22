@@ -1,4 +1,4 @@
-﻿param([string]$RunId=(Get-Date -Format 'yyyyMMdd-HHmmss'),[string]$ZipPath='C:\AutoFrogE2E\autofrog-setup-kit-20261016.zip',[ValidateSet('S1','S2','Both')][string]$Scenario='Both',[int]$TimeoutMinutes=45,[ValidateSet('Zip','OneLiner')][string]$Method='Zip',[switch]$Live)
+﻿param([string]$RunId=(Get-Date -Format 'yyyyMMdd-HHmmss'),[string]$ZipPath='C:\AutoFrogE2E\autofrog-setup-kit-20261016.zip',[ValidateSet('S1','S2','Both')][string]$Scenario='Both',[int]$TimeoutMinutes=45,[ValidateSet('Zip','OneLiner')][string]$Method='Zip',[switch]$Live,[ValidateSet('','cmd','ps')][string]$TwoLine='')
 $ErrorActionPreference='Stop'
 $Root='C:\AutoFrogE2E'
 if ($ZipPath -notlike "$Root\*") { throw 'Zip must be staged under C:\AutoFrogE2E' }
@@ -33,6 +33,7 @@ foreach ($s in $scenarios) {
         Copy-Item (Join-Path $Root 'www\install.ps1') (Join-Path $dir 'www\install.ps1') -Force
         Copy-Item $ZipPath (Join-Path $dir 'www\autofrog-setup-kit.zip') -Force
         if ($Live) { Set-Content (Join-Path $dir 'live.flag') 'https://autofrog.kr/kit.ps1' }  # 진짜 주소로 시험
+        if ($TwoLine) { Set-Content (Join-Path $dir 'twoline.flag') $TwoLine }  # 2번 명령으로 시험(2026-10-22)
     } else { Copy-Item $ZipPath (Join-Path $dir 'kit.zip') -Force }
     $start="@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\e2e\inside.ps1 -Scenario $s -Method $Method > C:\e2e\boot-console.log 2>&1`r`n"
     [IO.File]::WriteAllText((Join-Path $dir 'start.cmd'),$start,[Text.Encoding]::ASCII)

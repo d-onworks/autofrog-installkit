@@ -40,6 +40,13 @@
   table.login th code { font-family: Consolas, "SF Mono", monospace; font-size: 13.5px; color: var(--grn); background: var(--wash); padding: .2mm 1.4mm; border-radius: 2px; }
   table.login tr:first-child th, table.login tr:first-child td { border-top: 1px solid var(--line); }
   .note { margin-top: 2.4mm; background: var(--warnbg); border-left: 3px solid #e0a800; padding: 2mm 3mm; font-size: 13.2px; line-height: 1.55; color: #4a3600; }
+  .cmdline .no { color: #8fd19e; margin-right: 2.4mm; }
+  .step > div { min-width: 0; }
+  .cmdline { font-size: 11.8px !important; padding: 1.8mm 3mm !important; }
+  .step p, .step li { font-size: 13px !important; line-height: 1.5 !important; }
+  h2 { font-size: 16.5px !important; }
+  .cmdline.wrap { white-space: normal; word-break: break-all; }
+  .step { padding: 2.3mm 0 !important; }
   .cmdline { margin-top: 2mm; background: var(--ink); color: #eef1ee; font-family: Consolas, "SF Mono", monospace; font-size: 13.4px; font-weight: 700; padding: 2.6mm 3.4mm; border-radius: 3px; white-space: nowrap; line-height: 1.5; }
   .ok { margin-top: 2mm; background: var(--wash); border-left: 3px solid var(--grn); padding: 2mm 3mm; font-size: 13.2px; line-height: 1.55; }
   footer { margin-top: auto; padding-top: 3.5mm; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 6mm; font-size: 12.8px; line-height: 1.55; color: var(--sub); }
@@ -57,14 +64,16 @@
     <div class="meta">윈도우 10 · 11 (64비트)<br>설치 약 <b>5~15분</b> · 로그인 약 10분</div>
   </header>
 
-  <p class="lead"><b>한 줄</b>을 붙여 넣으면 수업에서 쓰는 프로그램이 한 번에 깔리고, <b>claude</b>·<b>codex</b> 명령도 바로 실행되게 맞춰집니다. 파일을 받거나 압축을 풀 필요가 없습니다. 관리자 권한 없이 내 계정 폴더에만 설치되고, <b>로그인</b>만 브라우저에서 직접 승인합니다.</p>
+  <p class="lead"><b>한 줄</b>을 붙여 넣으면 수업에서 쓰는 프로그램이 한 번에 깔리고, <b>claude</b>·<b>codex</b> 명령도 바로 실행되게 맞춰집니다. 내 계정 폴더에만 설치되고 <b>로그인</b>만 브라우저에서 직접 승인합니다.</p>
 
   <section class="step">
     <div class="num">0</div>
     <div>
-      <h2>설치 명령 한 줄 복사</h2>
-      <p><b>autofrog.kr/kit</b> 에 들어가 <b>[복사]</b>를 누릅니다. <span class="s">(라운지 도구 카드의 [복사] 도 같습니다. 직접 칠 때는 띄어쓰기까지 그대로)</span></p>
-      <div class="cmdline">powershell -ExecutionPolicy Bypass -c "irm https://autofrog.kr/kit.ps1 | iex"</div>
+      <h2>설치 명령 한 줄 복사 — 1번이 안 되면 2번</h2>
+      <p><b>autofrog.kr/kit</b> 에 들어가 <b>[복사]</b>를 누릅니다. <span class="s">(라운지 설치 카드의 [복사]도 같습니다)</span></p>
+      <div class="cmdline"><span class="no">1번</span>powershell -ExecutionPolicy Bypass -c "irm https://autofrog.kr/kit.ps1 | iex"</div>
+      <p class="s">백신이 1번을 <b>"트로이 목마"</b>로 잡거나 <b>"액세스가 거부되었습니다"</b>로 끝나면 2번. 설치되는 것은 같습니다.</p>
+      <div class="cmdline wrap"><span class="no">2번</span>powershell -NoProfile -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\af.ps1"</div>
     </div>
   </section>
 
@@ -96,7 +105,7 @@
         <tr><th>Vercel</th><td>브라우저가 열리면 <b>Continue with GitHub</b>.</td></tr>
         <tr><th>Supabase</th><td>브라우저의 확인 코드(8자리)를 복사해 붙여 넣고 <span class="kbd">Enter</span>. <span class="s">붙여 넣어도 화면에 안 보이는 게 정상입니다.</span></td></tr>
       </table>
-      <div class="note"><b>에러가 나면</b> PC마다 보안 설정이 달라 에러가 날 수 있습니다. 에러 화면을 그대로 캡처해(<span class="kbd">Win</span>+<span class="kbd">Shift</span>+<span class="kbd">S</span>) <b>클로드 대화창에 붙여 넣고 "이거 해결해 줘"</b> → 알려 주는 대로 따라 하면 대부분 해결됩니다.<br><b>"스마트 앱 컨트롤이 차단했습니다"</b> 창은 예전 방식(zip 의 <b>1-install.bat</b>)에서만 뜹니다 — 이 한 줄로 다시 하세요. 회사 <b>클로드 팀 계정</b>은 팀 관리자가 내 계정을 승인해야 로그인됩니다.</div>
+      <div class="note"><b>에러가 나면</b> 에러 화면을 캡처해(<span class="kbd">Win</span>+<span class="kbd">Shift</span>+<span class="kbd">S</span>) <b>클로드 대화창에 붙여 넣고 "이거 해결해 줘"</b> → 알려 주는 대로 따라 하면 대부분 해결됩니다.<br>둘 다 막히면 <b>autofrog.kr/kit.zip</b> 을 받아 압축 풀기 → <b>1-install.bat</b> 두 번 클릭. <b>"스마트 앱 컨트롤이 차단했습니다"</b> 창이 뜨면 <b>클로드나 코덱스 앱에 "스마트 앱 컨트롤 꺼 줘"</b>라고 하세요(한 번 끄면 윈도우를 새로 깔기 전엔 다시 못 켭니다). 회사 <b>클로드 팀 계정</b>은 팀 관리자가 내 계정을 승인해야 로그인됩니다.</div>
     </div>
   </section>
 

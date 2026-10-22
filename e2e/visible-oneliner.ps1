@@ -15,7 +15,18 @@ Remove-Item Env:\PSExecutionPolicyPreference -ErrorAction SilentlyContinue
 $logs=Join-Path $env:USERPROFILE 'autofrog-kit-logs'
 $before=if (Test-Path "$logs\result-latest.json") { (Get-Item "$logs\result-latest.json").LastWriteTime } else { [datetime]::MinValue }
 $sw=[Diagnostics.Stopwatch]::StartNew()
-& powershell.exe -ExecutionPolicy Bypass -c "irm $kitUrl | iex" 2>&1 | Tee-Object -FilePath "$Prefix.stdout.log"
+# C:\e2e\twoline.flag = 2번 명령(2026-10-22 · 백신이 irm|iex 한 줄을 막는 PC 용 — 받아 저장한 뒤 -File 로 실행).
+#   내용 'cmd' = Win+R 처럼 cmd 가 그대로 넘김 / 'ps' = 이미 열린 PowerShell 창에 붙여 넣은 경우($env:TEMP 를 바깥 셸이 먼저 푼다)
+$two=if (Test-Path 'C:\e2e\twoline.flag') { (Get-Content 'C:\e2e\twoline.flag' -Raw).Trim() } else { '' }
+if ($two -eq 'cmd') {
+    Write-Host 'command: 2 (via cmd, like Win+R)'
+    & $env:ComSpec /d /c ('powershell -NoProfile -c "irm '+$kitUrl+' -OutFile $env:TEMP\af.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\af.ps1"') 2>&1 | Tee-Object -FilePath "$Prefix.stdout.log"
+} elseif ($two -eq 'ps') {
+    Write-Host 'command: 2 (pasted into PowerShell)'
+    & powershell -NoProfile -c "irm $kitUrl -OutFile $env:TEMP\af.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\af.ps1" 2>&1 | Tee-Object -FilePath "$Prefix.stdout.log"
+} else {
+    & powershell.exe -ExecutionPolicy Bypass -c "irm $kitUrl | iex" 2>&1 | Tee-Object -FilePath "$Prefix.stdout.log"
+}
 $psExit=$LASTEXITCODE; $sw.Stop()
 $rc=1; $fresh=$false
 if (Test-Path "$logs\result-latest.json") {

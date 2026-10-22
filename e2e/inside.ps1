@@ -163,7 +163,7 @@ try {
     } else {
         Set-Phase 'desktop-extract'
         $desktop=[Environment]::GetFolderPath('Desktop');New-Item -ItemType Directory -Force $desktop | Out-Null
-        $zip=Join-Path $desktop 'autofrog-setup-kit-20261016.zip'
+        $zip=Join-Path $desktop 'autofrog-setup-kit.zip'
         Set-Phase 'copy-zip-to-desktop'
         Copy-Item (Join-Path $Base 'kit.zip') $zip -Force
         Set-Phase 'mark-zip-motw'
@@ -205,8 +205,13 @@ try {
     if ($Method -eq 'OneLiner') {
         # 바탕화면 아이콘이 가리키는 그대로(-Pause 대신 -CheckOnly)
         $login=Run-Process $lnk.target ($lnk.arguments -replace '-Pause$','-CheckOnly') (Join-Path $Out 'login') 180
-    } else {
+    } elseif (Test-Path (Join-Path $kit '2-login.bat')) {
         $login=Run-Process $env:ComSpec ('/d /c ""'+(Join-Path $kit '2-login.bat')+'" /check"') (Join-Path $Out 'login') 180
+    } else {
+        # 2026-10-22 zip 판: 2-login.bat 없이 설치가 만든 바탕화면 아이콘으로 확인
+        $lnkPath=Join-Path ([Environment]::GetFolderPath('Desktop')) '오토프로그 로그인.lnk'
+        $sc=(New-Object -ComObject WScript.Shell).CreateShortcut($lnkPath)
+        $login=Run-Process $sc.TargetPath ($sc.Arguments -replace '-Pause$','-CheckOnly') (Join-Path $Out 'login') 180
     }
     if (Test-Path "$logs\login-latest.json") { Copy-Item "$logs\login-latest.json" (Join-Path $Out 'login-latest.json') -Force }
     Set-Phase 'install-2'

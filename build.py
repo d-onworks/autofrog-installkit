@@ -106,7 +106,8 @@ def fetch(item):
 
 def text_for_windows(src: Path, dst: Path):
     """ps1·txt 는 UTF-8 BOM + CRLF(PowerShell 5.1 이 한글을 읽게), bat 은 ASCII + CRLF."""
-    raw = src.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\n", "\r\n")
+    # utf-8-sig: 원본에 BOM 이 이미 있어도 한 번만 붙게(두 겹이면 PowerShell 5.1 이 첫 줄·param 을 못 읽는다 · 2026-10-22)
+    raw = src.read_text(encoding="utf-8-sig").replace("\r\n", "\n").replace("\n", "\r\n")
     if src.suffix == ".bat":
         raw.encode("ascii")  # 한글이 섞이면 여기서 멈춘다
         dst.write_bytes(raw.encode("ascii"))

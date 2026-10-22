@@ -110,6 +110,11 @@ try {
     if ($Mode -eq 'Boot') {
         Set-Phase 'sandbox-boot'
         Save-Json ([ordered]@{os=(Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber); memory=(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory; winget=([bool](Get-Command winget -ErrorAction SilentlyContinue)); explorer=@(Get-Process explorer -ErrorAction SilentlyContinue | Select-Object Id,SessionId)}) (Join-Path $Out 'sandbox.json')
+        # 2026-10-22: 샌드박스가 스마트 앱 컨트롤 켜짐(1)으로 뜨기 시작해 Git 부품이 막혔다 — 보통 PC(꺼짐)를 흉내 내려고 끈다.
+        # C:\e2e\sac-on.flag 가 있으면 켠 채로 둔다(키트의 스마트 앱 컨트롤 안내 시험용).
+        $sacKey='HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy'; $sacBefore=(Get-ItemProperty $sacKey -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState
+        if ($sacBefore -eq 1 -and -not (Test-Path 'C:\e2e\sac-on.flag')) { Set-ItemProperty $sacKey VerifiedAndReputablePolicyState 0 -Type DWord; & "$env:windir\System32\CiTool.exe" --refresh --json | Out-Null }
+        Save-Json @{before=$sacBefore;after=(Get-ItemProperty $sacKey -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState;keepOn=(Test-Path 'C:\e2e\sac-on.flag')} (Join-Path $Out 'sac.json')
         $monitor=Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -File C:\e2e\screen-monitor.ps1 -Scenario '+$Scenario)
         if ($Method -eq 'OneLiner') { $server=Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -File C:\e2e\serve.ps1 -Scenario '+$Scenario); Start-Sleep 3 }
         if ($Scenario -eq 'S2') { $mirror=Start-Process powershell.exe -WindowStyle Maximized -PassThru -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File C:\e2e\mirror-console.ps1 -Scenario S2' }

@@ -134,6 +134,49 @@ Invoke-Step 'precheck' '0. 사전 점검' {
     Set-Result 'precheck' 'OK' ($notes -join ', ')
 }
 
+# ── 0-1. 스마트 앱 컨트롤 (2026-10-22) ──────────────────────
+# 새 PC·포맷한 PC 는 윈도우 11 「스마트 앱 컨트롤」이 저절로 켜진다. 켜짐(강제) 상태면 Git 의 서명 없는 부품
+# (2.56 은 ucrt64\bin\zlib1.dll 등 → git 자체, 2.55 는 usr\bin\bash.exe → 클로드 코드가 쓰는 Git Bash)을 막는다.
+# 버전을 바꿔도 피할 수 없어(샌드박스 실측), 끄지 않으면 설치해도 쓸 수 없다 → 먼저 묻고, 끄면 그대로 이어서 설치한다.
+# 값: 0 꺼짐 · 1 켜짐(막음) · 2 평가 중(막지 않음). 한 번 끄면 윈도우를 새로 깔기 전엔 다시 켤 수 없다.
+function Get-SacState {
+    try { return [int](Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -ErrorAction Stop).VerifiedAndReputablePolicyState } catch { return -1 }
+}
+if ((Get-SacState) -eq 1 -and $env:AUTOFROG_IGNORE_SAC -ne '1') {
+    Write-Title '0-1. 스마트 앱 컨트롤'
+    Write-Warn2 '이 PC 는 윈도우 「스마트 앱 컨트롤」이 켜져 있습니다. 켜져 있으면 Git 이 막혀서 클로드 코드를 쓸 수 없습니다.'
+    Write-Host  '  끄면 바로 이어서 설치합니다. (한 번 끄면 윈도우를 새로 깔기 전에는 다시 켤 수 없습니다 — 다른 백신·Defender 보호는 그대로입니다)' -ForegroundColor White
+    $turned = $false
+    if (-not $Auto) {
+        $a = Read-Host '  지금 끌까요? (Enter = 끄기 → 관리자 확인 창에서 [예] / n = 그만두기)'
+        if ($a -notmatch '^(n|no|아니)') {
+            # 큰따옴표 없이 쓴다 — Start-Process 가 인자를 다시 쪼갤 때 따옴표가 벗겨진다.
+            # CiTool 은 --json 없이 돌리면 끝에서 Enter 를 기다린다(숨긴 창이라 영영 안 끝남 · 2026-10-22 샌드박스).
+            $cmd = "Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' VerifiedAndReputablePolicyState 0 -Type DWord; & (Join-Path `$env:windir 'System32\CiTool.exe') --refresh --json | Out-Null"
+            try {
+                Start-Process (Join-Path $PSHOME 'powershell.exe') -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command $cmd"
+            } catch { Write-Warn2 "관리자 확인이 취소됐거나 실패했습니다: $($_.Exception.Message)" }
+            $turned = ((Get-SacState) -ne 1)
+        }
+    }
+    if ($turned) {
+        Write-Ok '스마트 앱 컨트롤을 껐습니다. 설치를 이어서 합니다.'
+        Set-Result 'sac' 'OK' 'turned-off'
+    } else {
+        Set-Result 'sac' 'FAIL' 'smart-app-control-on'
+        Write-Host ''
+        Write-Fail '스마트 앱 컨트롤을 끈 뒤 같은 명령을 다시 실행해 주세요.'
+        Write-Host '  끄는 법: 시작 → "Windows 보안" → 앱 및 브라우저 컨트롤 → 스마트 앱 컨트롤 설정 → 끄기' -ForegroundColor White
+        Write-Host '          또는 클로드·코덱스 앱에 "스마트 앱 컨트롤 꺼 줘" 라고 하세요.' -ForegroundColor White
+        if (-not $Auto) {
+            try { Start-Process 'windowsdefender://appbrowser' } catch {}
+            [void](Read-Host '  Enter 를 누르면 창이 닫힙니다')
+        }
+        try { Stop-Transcript | Out-Null } catch {}
+        exit 3
+    }
+}
+
 # ── 1. Git ────────────────────────────────────────────────
 Invoke-Step 'git' '1. Git 설치' {
     $git = Find-Exe 'git'
@@ -143,9 +186,15 @@ Invoke-Step 'git' '1. Git 설치' {
     } else {
         $it = Get-Installer 'git'
         Write-Step "Git $($it.Version) 설치 중(1~2분)…"
-        $p = Start-Process -FilePath $it.Path -Wait -PassThru -ArgumentList @(
+        $p = Start-Process -FilePath $it.Path -PassThru -ArgumentList @(
             '/VERYSILENT', '/NORESTART', '/NOCANCEL', '/SP-', '/SUPPRESSMSGBOXES', '/CLOSEAPPLICATIONS',
             ('/DIR="' + (Join-Path $env:LOCALAPPDATA 'Programs\Git') + '"'), '/o:PathOption=Cmd')
+        [void]$p.Handle  # 끝난 뒤에도 종료 코드를 읽으려면 핸들을 먼저 잡아 둔다
+        # 보안 정책이 git 을 막으면 설치 프로그램이 오류 창 뒤에서 끝나지 않는다(2026-10-22 샌드박스) — 10분이면 끊고 알린다
+        if (-not $p.WaitForExit(600000)) {
+            & taskkill.exe /PID $p.Id /T /F 2>&1 | Out-Null
+            throw 'Git 설치가 10분 넘게 끝나지 않아 멈췄습니다. 화면에 "잘못된 이미지" 같은 창이 떠 있으면 윈도우 「스마트 앱 컨트롤」이나 백신이 Git 을 막은 것입니다.'
+        }
         if ($p.ExitCode -ne 0) { throw "Git 설치 프로그램이 오류로 끝났습니다(코드 $($p.ExitCode))." }
         Update-SessionPath
         $git = Find-Exe 'git'
@@ -155,6 +204,9 @@ Invoke-Step 'git' '1. Git 설치' {
             }
         }
         if (-not $git) { throw 'Git 을 설치했지만 git 명령을 찾지 못했습니다.' }
+        # 깔렸어도 보안 정책이 부품을 막으면 실행이 안 된다(스마트 앱 컨트롤 등) — 여기서 바로 알린다
+        $gv = Invoke-Native $git @('--version')
+        if ($gv.Code -ne 0) { throw "Git 이 실행되지 않습니다(코드 $($gv.Code)). 윈도우 「스마트 앱 컨트롤」이나 백신이 막았을 수 있습니다." }
         Write-Ok "Git 설치 완료: $git"
         Set-Result 'git' 'OK' $git
     }

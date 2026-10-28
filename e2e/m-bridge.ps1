@@ -97,7 +97,7 @@ while ($ok -and $target -and -not $target.HasExited -and (Get-Date) -lt $deadlin
   if (-not $ansCode -and $n -match 'VS Code 에서 작업을 저장한 뒤') { Start-Sleep 1; [void][MB]::Send("`n"); $ansCode=$true; Ev 'answer-vscode-running' }
   if (-not $ansSac -and $n -match '지금 끌까요') { Save-Snap 'console-at-sac.txt' $t; Start-Sleep 1; [void][MB]::Send("n`n"); $ansSac=$true; Ev 'answer-sac-no' }
   if (-not $ansLogin -and $n -match '이어서 로그인할까요') { Save-Snap 'console-at-login-question.txt' $t; Ev 'login-question'; Start-Sleep 2; [void][MB]::Send("n`n"); $ansLogin=$true; Ev 'answer-login-no' }
-  if (-not $ansFinal -and $n -match 'Enter 를 누르면 창이 닫힙니다') { Save-Snap 'console-at-final.txt' $t; Ev 'final-question'; Start-Sleep 3; [void][MB]::Send("`n"); $ansFinal=$true; Ev 'answer-final-enter' }
+  if (-not $ansFinal -and $n -match 'Enter 를 누르면 (창이 닫힙니다|끝납니다)') { Save-Snap 'console-at-final.txt' $t; Ev 'final-question'; Start-Sleep 3; [void][MB]::Send("`n"); $ansFinal=$true; Ev 'answer-final-enter' }
   if ($ansFinal -and $prompt) { Start-Sleep 2; $t2=[MB]::Dump(900); Save-Snap 'console-end.txt' $t2; $promptBack=$true; Ev 'prompt-back'; break }
   if ($sw.Elapsed.TotalSeconds -lt 20) { Start-Sleep -Milliseconds 150 } else { Start-Sleep -Milliseconds 1000 }
 }

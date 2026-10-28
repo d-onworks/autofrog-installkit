@@ -558,13 +558,18 @@ try {
 }
 
 # 새 PATH 를 물려받은 VS Code 를 이 창에서 띄운다(이미 켜진 VS Code 는 옛 PATH 를 쓴다)
-$openedCode = $false
+# 사람이 보는 한 줄 설치(-OneLiner, -Auto 아님)는 맨 마지막 Enter 뒤에 연다 — 먼저 열면 VS Code 가 이 창을 덮어
+# 「이어서 로그인할까요?」 질문이 가려진다(2026-10-28 샌드박스 재시험).
 $code = Find-CodeCmd
-if ($code -and -not (Get-Process -Name Code -ErrorAction SilentlyContinue)) {
+$openCode = [bool]($code -and -not (Get-Process -Name Code -ErrorAction SilentlyContinue))
+$deferCode = ($OneLiner -and -not $Auto)
+function Open-VSCodeNow {
     Write-Host ''
     Write-Host '  VS Code 를 엽니다. 아래 터미널에서 codex 또는 claude 를 입력해 보세요.' -ForegroundColor White
-    try { Start-Process -FilePath $code -WindowStyle Hidden; $openedCode = $true } catch { Write-Warn2 "VS Code 를 열지 못했습니다: $($_.Exception.Message)" }
+    try { Start-Process -FilePath $code -WindowStyle Hidden } catch { Write-Warn2 "VS Code 를 열지 못했습니다: $($_.Exception.Message)" }
 }
+if ($openCode -and -not $deferCode) { Open-VSCodeNow }
+$openedCode = $openCode
 
 $report = [ordered]@{
     kit = $Manifest.built; online = $Online; finished = (Get-Date).ToString('s'); user = $env:USERNAME
@@ -599,6 +604,11 @@ if ($OneLiner -and -not $Auto) {
         }
     }
     Write-Host ''
-    [void](Read-Host '  Enter 를 누르면 끝납니다')
+    if ($openCode) {
+        [void](Read-Host '  Enter 를 누르면 VS Code 를 열고 끝납니다')
+        Open-VSCodeNow
+    } else {
+        [void](Read-Host '  Enter 를 누르면 끝납니다')
+    }
 }
 if ($allOk) { exit 0 } else { exit 1 }

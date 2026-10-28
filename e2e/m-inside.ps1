@@ -148,6 +148,38 @@ try {
     $summary.result=Result-Of 'C:\Users\수강생' $since
     Copy-KitLogs 'C:\Users\수강생' (Join-Path $d 'kit-logs')
   }
+  elseif ($Test -eq 'R1') {
+    # 재시험(2026-10-28 v2026.10.28): 표준 사용자 일반 창 + irm | iex. 본인 폴더 설치·마지막 문구 확인
+    Phase 'create-standard-user'
+    $pw=New-Pw; $sec=ConvertTo-SecureString $pw -AsPlainText -Force
+    $u=New-LocalUser -Name '수강생' -Password $sec -AccountNeverExpires
+    Add-LocalGroupMember -Group (Get-LocalGroup -SID 'S-1-5-32-545') -Member $u
+    $cred=New-Object Management.Automation.PSCredential("$env:COMPUTERNAME\수강생",$sec)
+    $d=Join-Path $Out 'R1'; New-Item -ItemType Directory -Force $d | Out-Null
+    [IO.File]::WriteAllText((Join-Path $d 'type.txt'),'irm https://autofrog.kr/kit.ps1 | iex')
+    Phase 'R1-install'; Set-Tag 'R1' 20; $since=Get-Date
+    Start-Process $PSExe -Credential $cred -LoadUserProfile -WindowStyle Hidden -WorkingDirectory C:\e2e -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File C:\e2e\m-bridge.ps1 -Mode Launch -Out $d" | Out-Null
+    $fin=Wait-File (Join-Path $d 'bridge-done.json') 2700
+    Set-Tag 'R1-after' 0
+    Phase 'R1-probe'
+    Start-Process $PSExe -Credential $cred -LoadUserProfile -WindowStyle Hidden -Wait -WorkingDirectory C:\e2e -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File C:\e2e\m-probe.ps1 -OutFile $d\probe-수강생.json"
+    $summary.bridgeFinished=$fin
+    $summary.result=Result-Of 'C:\Users\수강생' $since
+    $summary.where=[ordered]@{}
+    foreach ($who in '수강생',$env:USERNAME) { foreach ($rel in 'AppData\Local\AutoFrogKit','AppData\Local\Programs\Microsoft VS Code','AppData\Local\Programs\Git','AppData\Roaming\npm','.codex','Desktop\오토프로그 로그인.lnk') { $summary.where["$who\$rel"]=(Test-Path (Join-Path "C:\Users\$who" $rel)) } }
+    Copy-KitLogs 'C:\Users\수강생' (Join-Path $d 'kit-logs')
+  }
+  elseif ($Test -eq 'R2') {
+    # 재시험: Win+R 에 -NoExit 판 그대로. 설치 성공·끝난 뒤 창 유지 확인
+    $c1='powershell -NoProfile -ExecutionPolicy Bypass -NoExit -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; & $env:TEMP\af.ps1"'
+    Phase 'R2-winr-live'; $since=Get-Date
+    $summary.R2=Invoke-WinR $c1 'R2' 2700 -Answer -CloseAtEnd
+    $summary.R2_result=Result-Of $env:USERPROFILE $since
+    $summary.where=[ordered]@{}
+    foreach ($rel in 'AppData\Local\AutoFrogKit','AppData\Local\Programs\Microsoft VS Code','AppData\Local\Programs\Git','AppData\Roaming\npm','.codex','Desktop\오토프로그 로그인.lnk') { $summary.where["$env:USERNAME\$rel"]=(Test-Path (Join-Path $env:USERPROFILE $rel)) }
+    Copy-KitLogs $env:USERPROFILE (Join-Path $Out 'R2\kit-logs')
+    Stop-Code
+  }
   elseif ($Test -eq 'T2a') {
     Phase 'T2a-install'
     Set-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' ConsentPromptBehaviorAdmin 0 -Type DWord

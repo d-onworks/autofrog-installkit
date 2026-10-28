@@ -27,6 +27,10 @@ public static class MB {
   [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] public static extern bool WriteConsoleInputW(IntPtr h, IR[] r, uint n, out uint w);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern short VkKeyScanW(char c);
   [DllImport("user32.dll")] public static extern uint MapVirtualKeyW(uint code, uint type);
+  [DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr h, out uint m);
+  [DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr h, uint m);
+  // 빠른 편집(QuickEdit) 끄기 — 창을 누가 클릭해 「선택」 상태가 되면 출력이 멈춰 설치가 멈춘 것처럼 보인다(2026-10-28 실측)
+  public static uint NoQuickEdit() { uint m; if (!GetConsoleMode(In, out m)) return 0xFFFFFFFF; uint n = (m & ~0x40u) | 0x80u; SetConsoleMode(In, n); uint a; GetConsoleMode(In, out a); return a; }
   public static IntPtr Out, In;
   public static bool Attach(uint pid) {
     FreeConsole();
@@ -78,6 +82,13 @@ if ($target) { $null=$target.Handle }
 $ok=$false
 for ($i=0; $i -lt 60 -and -not $ok; $i++) { $ok=[MB]::Attach([uint32]$TargetPid); if (-not $ok) { Start-Sleep -Milliseconds 100 } }
 Ev 'attach' @{pid=$TargetPid;ok=$ok;err=[Runtime.InteropServices.Marshal]::GetLastWin32Error()}
+if ($ok) { $qm=[MB]::NoQuickEdit(); Ev 'quickedit-off' @{mode=$qm} }
+function Code-Count { @(Get-Process Code -ErrorAction SilentlyContinue).Count }
+function Burst([string]$Tag,[int]$Sec) {
+  # 화면 찍기(m-shots)를 잠깐 0.5초 간격으로 — 질문 시점 캡처용. 부모 out 폴더의 tag/burst 파일을 쓴다
+  try { $p=Split-Path $Out -Parent; [IO.File]::WriteAllText((Join-Path $p 'tag.txt'),$Tag); [IO.File]::WriteAllText((Join-Path $p 'burst.txt'),[string](Get-Date).AddSeconds($Sec).Ticks) } catch {}
+}
+$lastCode=-1
 $typed=$false; $ansLogin=$false; $ansFinal=$false; $ansCode=$false; $ansSac=$false; $last=''; $promptBack=$false
 $deadline=(Get-Date).AddSeconds($TimeoutSec)
 function Save-Snap([string]$Name,[string]$Text) { if ($Text) { [IO.File]::WriteAllText((Join-Path $Out $Name),$Text,$utf8) } }
@@ -96,9 +107,14 @@ while ($ok -and $target -and -not $target.HasExited -and (Get-Date) -lt $deadlin
   }
   if (-not $ansCode -and $n -match 'VS Code 에서 작업을 저장한 뒤') { Start-Sleep 1; [void][MB]::Send("`n"); $ansCode=$true; Ev 'answer-vscode-running' }
   if (-not $ansSac -and $n -match '지금 끌까요') { Save-Snap 'console-at-sac.txt' $t; Start-Sleep 1; [void][MB]::Send("n`n"); $ansSac=$true; Ev 'answer-sac-no' }
-  if (-not $ansLogin -and $n -match '이어서 로그인할까요') { Save-Snap 'console-at-login-question.txt' $t; Ev 'login-question'; Start-Sleep 2; [void][MB]::Send("n`n"); $ansLogin=$true; Ev 'answer-login-no' }
-  if (-not $ansFinal -and $n -match 'Enter 를 누르면 (창이 닫힙니다|끝납니다)') { Save-Snap 'console-at-final.txt' $t; Ev 'final-question'; Start-Sleep 3; [void][MB]::Send("`n"); $ansFinal=$true; Ev 'answer-final-enter' }
-  if ($ansFinal -and $prompt) { Start-Sleep 2; $t2=[MB]::Dump(900); Save-Snap 'console-end.txt' $t2; $promptBack=$true; Ev 'prompt-back'; break }
+  $cc=Code-Count; if ($cc -ne $lastCode) { Ev 'code-procs' @{count=$cc}; $lastCode=$cc }
+  if (-not $ansLogin -and $n -match '이어서 로그인할까요') { Save-Snap 'console-at-login-question.txt' $t; Burst 'loginq' 15; Ev 'login-question' @{codeCount=(Code-Count)}; Start-Sleep 6; Ev 'login-question-after-6s' @{codeCount=(Code-Count)}; [void][MB]::Send("n`n"); $ansLogin=$true; Ev 'answer-login-no' }
+  if (-not $ansFinal -and $n -match 'Enter 를 누르면 (VS Code 를 열고 )?(창이 닫힙니다|끝납니다)') { Save-Snap 'console-at-final.txt' $t; Burst 'final' 15; Ev 'final-question' @{codeCount=(Code-Count);vscodePhrase=($n -match 'VS Code 를 열고 끝납니다')}; Start-Sleep 5; Ev 'final-before-enter' @{codeCount=(Code-Count)}; [void][MB]::Send("`n"); $ansFinal=$true; Ev 'answer-final-enter' }
+  if ($ansFinal -and $prompt) {
+    Burst 'after-enter' 20
+    $d0=(Get-Date).AddSeconds(30); while ((Code-Count) -eq 0 -and (Get-Date) -lt $d0) { Start-Sleep -Milliseconds 300 }
+    Ev 'after-enter-code' @{codeCount=(Code-Count)}; Start-Sleep 2
+    $t2=[MB]::Dump(900); Save-Snap 'console-end.txt' $t2; $promptBack=$true; Ev 'prompt-back'; break }
   if ($sw.Elapsed.TotalSeconds -lt 20) { Start-Sleep -Milliseconds 150 } else { Start-Sleep -Milliseconds 1000 }
 }
 $exited=($target -and $target.HasExited)

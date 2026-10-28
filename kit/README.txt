@@ -1,14 +1,17 @@
 오토프로그 바이브코딩 설치 키트 (윈도우 10/11 64비트)
 
-설치: 키보드 Win+R → 아래 1번 한 줄을 붙여 넣고 Enter (안내: https://autofrog.kr/kit)
+설치 (안내: https://autofrog.kr/kit)
+ 1) 키보드 Win 키 → powershell 입력 → 그냥 Enter (관리자로 실행 아님)
+ 2) 열린 창에 아래 한 줄을 붙여 넣고 Enter
 
- 1번  powershell -ExecutionPolicy Bypass -c "irm https://autofrog.kr/kit.ps1 | iex"
+    irm https://autofrog.kr/kit.ps1 | iex
 
- 1번이 막히면 2번 — 백신이 "트로이 목마"로 잡거나 "액세스가 거부되었습니다"로 끝날 때
+ - 관리자로 열면 회사 PC 처럼 일반 계정을 쓰는 PC 에서는 관리자 계정 쪽에 깔려 내 계정에서 안 보입니다.
+ - Win+R 로 하고 싶다면 실행 창에 아래 줄 (오류가 나도 창이 닫히지 않습니다)
 
- 2번  powershell -NoProfile -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\af.ps1"
+    powershell -NoProfile -ExecutionPolicy Bypass -NoExit -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; & $env:TEMP\af.ps1"
 
- 둘 다 막히면 zip: 이 zip 을 마우스 오른쪽 → [압축 풀기] → 풀린 폴더의 [1-install.bat] 더블클릭
+ 그래도 막히면 zip: 이 zip 을 마우스 오른쪽 → [압축 풀기] → 풀린 폴더의 [1-install.bat] 더블클릭
    - 파란 "Windows의 PC 보호" 창이 뜨면 [추가 정보] → [실행]
    - "스마트 앱 컨트롤이 차단했습니다" 창이 뜨면 클로드나 코덱스 앱에 "스마트 앱 컨트롤 꺼 줘"라고 하세요
      (한 번 끄면 윈도우를 새로 설치하기 전에는 다시 켤 수 없습니다)

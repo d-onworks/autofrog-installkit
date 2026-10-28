@@ -20,18 +20,22 @@
 
 ## 쓰는 법 (윈도우)
 
-1. 키보드 `Win` + `R` → 아래 한 줄을 붙여 넣고 Enter (안내 페이지: [autofrog.kr/kit](https://autofrog.kr/kit))
+1. 키보드 `Win` 키 → `powershell` 입력 → **그냥 Enter**(관리자로 실행 아님) → 열린 창에 아래 한 줄을 붙여 넣고 Enter
+   (안내 페이지: [autofrog.kr/kit](https://autofrog.kr/kit))
 
    ```text
-   powershell -ExecutionPolicy Bypass -c "irm https://autofrog.kr/kit.ps1 | iex"
+   irm https://autofrog.kr/kit.ps1 | iex
    ```
 
-   - **1번이 막히면 2번** — 어떤 PC 는 백신(Defender 포함)이 `irm … | iex` 한 줄을 "트로이 목마"로 보고 막습니다
-     (파란 창이 "액세스가 거부되었습니다"로 끝남). 2번은 받은 스크립트를 파일로 저장한 뒤 `-File` 로 실행해
-     같은 설치를 합니다(2026-10-22 대표 노트북에서 확인). Win+R 에도, 이미 열린 PowerShell 창에도 그대로 붙여 넣을 수 있습니다.
+   - **왜 PowerShell 창부터 여나** — Win+R 실행 창에 `powershell -c "irm … | iex"` 를 넣는 모양은 요즘 해킹 수법과 같아
+     백신(Defender 포함)이 막는 PC 가 많습니다. 열린 창에 붙여 넣으면 덜 막히고, 막혀도 창이 남아 오류를 볼 수 있습니다(2026-10-28).
+   - **관리자로 열지 않는 이유** — 회사 PC 처럼 일반 계정을 쓰는 PC 에서 관리자로 열면 관리자 계정 폴더에 깔려
+     본인 계정에서는 아무것도 안 보입니다(2026-10-28 샌드박스 실측). 이 키트는 관리자 권한이 필요 없습니다.
+   - **Win+R 로 하고 싶다면** — powershell 한 번 + `-NoExit` 로, 중간에 실패해도 창이 닫히지 않습니다.
+     (옛 2번 줄은 powershell 을 두 번 띄워, 실패하면 창이 1초 만에 꺼져 오류를 못 봤습니다.)
 
      ```text
-     powershell -NoProfile -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\af.ps1"
+     powershell -NoProfile -ExecutionPolicy Bypass -NoExit -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; & $env:TEMP\af.ps1"
      ```
 
    - `autofrog.kr/kit.ps1` 은 이 저장소 최신 릴리즈의 `install.ps1` 로 넘겨줍니다. 같은 것을 직접 쓰려면

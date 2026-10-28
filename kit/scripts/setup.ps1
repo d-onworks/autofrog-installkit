@@ -170,7 +170,7 @@ if ((Get-SacState) -eq 1 -and $env:AUTOFROG_IGNORE_SAC -ne '1') {
         Write-Host '          또는 클로드·코덱스 앱에 "스마트 앱 컨트롤 꺼 줘" 라고 하세요.' -ForegroundColor White
         if (-not $Auto) {
             try { Start-Process 'windowsdefender://appbrowser' } catch {}
-            [void](Read-Host '  Enter 를 누르면 창이 닫힙니다')
+            [void](Read-Host '  Enter 를 누르면 끝납니다')
         }
         try { Stop-Transcript | Out-Null } catch {}
         exit 3
@@ -599,6 +599,6 @@ if ($OneLiner -and -not $Auto) {
         }
     }
     Write-Host ''
-    [void](Read-Host '  Enter 를 누르면 창이 닫힙니다')
+    [void](Read-Host '  Enter 를 누르면 끝납니다')
 }
 if ($allOk) { exit 0 } else { exit 1 }

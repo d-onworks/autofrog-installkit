@@ -69,18 +69,19 @@
   <section class="step">
     <div class="num">0</div>
     <div>
-      <h2>설치 명령 한 줄 복사 — 1번이 안 되면 2번</h2>
-      <p><b>autofrog.kr/kit</b> 에 들어가 <b>[복사]</b>를 누릅니다. <span class="s">(라운지 설치 카드의 [복사]도 같습니다)</span></p>
-      <div class="cmdline"><span class="no">1번</span>powershell -ExecutionPolicy Bypass -c "irm https://autofrog.kr/kit.ps1 | iex"</div>
-      <p class="s">백신이 1번을 <b>"트로이 목마"</b>로 잡거나 <b>"액세스가 거부되었습니다"</b>로 끝나면 2번. 설치되는 것은 같습니다.</p>
-      <div class="cmdline wrap"><span class="no">2번</span>powershell -NoProfile -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\af.ps1"</div>
+      <h2>PowerShell 창 열고 한 줄 붙여넣기</h2>
+      <p><span class="kbd">Win</span> 키 → <b>powershell</b> 입력 → <b>그냥 Enter</b> <span class="s">(관리자로 실행 아님 — 일반 계정 PC 는 관리자 계정 쪽에 깔려 내 계정에서 안 보입니다)</span></p>
+      <p><b>autofrog.kr/kit</b> 의 <b>[복사]</b> → 열린 창에 붙여넣기(<span class="kbd">Ctrl</span>+<span class="kbd">V</span>) → <span class="kbd">Enter</span></p>
+      <div class="cmdline">irm https://autofrog.kr/kit.ps1 | iex</div>
+      <p class="s"><b>Win + R</b> 로 하려면 실행 창에 아래 줄. 오류가 나도 창이 닫히지 않습니다.</p>
+      <div class="cmdline wrap"><span class="no">Win+R</span>powershell -NoProfile -ExecutionPolicy Bypass -NoExit -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; &amp; $env:TEMP\af.ps1"</div>
     </div>
   </section>
 
   <section class="step main">
     <div class="num">1</div>
     <div>
-      <h2><span class="kbd">Win</span> + <span class="kbd">R</span> → 붙여넣기 → <span class="kbd">Enter</span> → 기다리기</h2>
+      <h2>기다리기 — 창을 닫지 마세요</h2>
       <ul>
         <li>파란 PowerShell 창이 뜨고 설치가 시작됩니다. <b>창을 닫지 말고</b> 기다리세요.</li>
         <li>VS Code가 켜져 있으면 저장하고 닫으라고 묻습니다. <span class="kbd">Enter</span> 를 누르면 닫고 이어서 설치합니다.</li>
@@ -106,7 +107,7 @@
         <tr><th>Vercel</th><td>브라우저가 열리면 <b>Continue with GitHub</b>.</td></tr>
         <tr><th>Supabase</th><td>브라우저의 확인 코드(8자리)를 복사해 붙여 넣고 <span class="kbd">Enter</span>. <span class="s">붙여 넣어도 화면에 안 보이는 게 정상입니다.</span></td></tr>
       </table>
-      <div class="note"><b>에러가 나면</b> 에러 화면을 캡처해(<span class="kbd">Win</span>+<span class="kbd">Shift</span>+<span class="kbd">S</span>) <b>클로드 대화창에 붙여 넣고 "이거 해결해 줘"</b> → 알려 주는 대로 따라 하면 대부분 해결됩니다.<br>둘 다 막히면 <b>autofrog.kr/kit.zip</b> 을 받아 압축 풀기 → <b>1-install.bat</b> 두 번 클릭. <b>"스마트 앱 컨트롤이 차단했습니다"</b> 창이 뜨면 <b>클로드나 코덱스 앱에 "스마트 앱 컨트롤 꺼 줘"</b>라고 하세요. 회사 <b>클로드 팀 계정</b>은 팀 관리자가 내 계정을 승인해야 로그인됩니다.</div>
+      <div class="note"><b>에러가 나면</b> 에러 화면을 캡처해(<span class="kbd">Win</span>+<span class="kbd">Shift</span>+<span class="kbd">S</span>) <b>클로드 대화창에 붙여 넣고 "이거 해결해 줘"</b> → 알려 주는 대로 따라 하면 대부분 해결됩니다.<br>그래도 막히면 <b>autofrog.kr/kit.zip</b> 을 받아 압축 풀기 → <b>1-install.bat</b> 두 번 클릭. <b>"스마트 앱 컨트롤이 차단했습니다"</b> 창이 뜨면 <b>클로드나 코덱스 앱에 "스마트 앱 컨트롤 꺼 줘"</b>라고 하세요. 회사 <b>클로드 팀 계정</b>은 팀 관리자가 내 계정을 승인해야 로그인됩니다.</div>
     </div>
   </section>
 

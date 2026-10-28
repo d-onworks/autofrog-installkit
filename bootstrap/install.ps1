@@ -1,5 +1,7 @@
 # AutoFrog setup kit - Windows one-line installer.
-#   Win+R:  powershell -ExecutionPolicy Bypass -c "irm https://autofrog.kr/kit.ps1 | iex"
+#   Open PowerShell (Win key -> powershell -> Enter, NOT as administrator), then paste:
+#     irm https://autofrog.kr/kit.ps1 | iex
+#   Win+R:  powershell -NoProfile -ExecutionPolicy Bypass -NoExit -c "irm https://autofrog.kr/kit.ps1 -OutFile $env:TEMP\af.ps1; & $env:TEMP\af.ps1"
 #   (autofrog.kr/kit.ps1 redirects to releases/latest/download/install.ps1 of this repository)
 #
 # Why one line instead of zip + 1-install.bat (2026-10-21):
@@ -65,5 +67,5 @@ if ($ok) {
         $env:Path = "$u;$m"
     } catch {}
 } elseif (-not $Auto) {
-    [void](Read-Host '  Press Enter to close')
+    [void](Read-Host '  Press Enter to finish')
 }

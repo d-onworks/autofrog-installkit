@@ -1,4 +1,4 @@
-﻿param([string]$RunId=(Get-Date -Format 'yyyyMMdd-HHmmss'),[string]$ZipPath='C:\AutoFrogE2E\autofrog-setup-kit-20261016.zip',[ValidateSet('S1','S2','Both')][string]$Scenario='Both',[int]$TimeoutMinutes=45,[ValidateSet('Zip','OneLiner')][string]$Method='Zip',[switch]$Live,[ValidateSet('','cmd','ps')][string]$TwoLine='')
+﻿param([string]$RunId=(Get-Date -Format 'yyyyMMdd-HHmmss'),[string]$ZipPath='C:\AutoFrogE2E\autofrog-setup-kit-20261016.zip',[ValidateSet('S1','S2','Both')][string]$Scenario='Both',[int]$TimeoutMinutes=45,[ValidateSet('Zip','OneLiner')][string]$Method='Zip',[switch]$Live,[ValidateSet('','cmd','ps')][string]$TwoLine='',[ValidateSet('','app')][string]$Edition='')
 $ErrorActionPreference='Stop'
 $Root='C:\AutoFrogE2E'
 if ($ZipPath -notlike "$Root\*") { throw 'Zip must be staged under C:\AutoFrogE2E' }
@@ -31,6 +31,8 @@ foreach ($s in $scenarios) {
         # 한 줄 설치: 시험 서버가 내보낼 install.ps1 + 온라인 키트 zip (C:\AutoFrogE2E\www 에 미리 올려 둔다)
         New-Item -ItemType Directory -Force (Join-Path $dir 'www') | Out-Null
         Copy-Item (Join-Path $Root 'www\install.ps1') (Join-Path $dir 'www\install.ps1') -Force
+        if (Test-Path (Join-Path $Root 'www\install-app.ps1')) { Copy-Item (Join-Path $Root 'www\install-app.ps1') (Join-Path $dir 'www\install-app.ps1') -Force }
+        if ($Edition) { Set-Content (Join-Path $dir 'edition.flag') $Edition }  # 클로드 코드 앱용(2026-11-03) — kosi.ps1 로 시험
         Copy-Item $ZipPath (Join-Path $dir 'www\autofrog-setup-kit.zip') -Force
         if ($Live) { Set-Content (Join-Path $dir 'live.flag') 'https://autofrog.kr/kit.ps1' }  # 진짜 주소로 시험
         if ($TwoLine) { Set-Content (Join-Path $dir 'twoline.flag') $TwoLine }  # 2번 명령으로 시험(2026-10-22)

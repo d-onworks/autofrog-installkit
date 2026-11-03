@@ -14,6 +14,9 @@
 #   scripts\setup.ps1 -OneLiner in this window (setup.ps1 shows the Korean UI, makes the desktop
 #   login shortcut and offers to continue with login). Safe to run again.
 # Test switches: AUTOFROG_KIT_ZIP (zip URL or path) / AUTOFROG_AUTO=1 (no questions, for E2E).
+# Edition (2026-11-03): build.py writes install-app.ps1 from this file with the EDITION line fixed to 'app'
+#   (autofrog.kr/kosi.ps1) = Claude Code desktop app edition: Git, Node.js, GitHub/Supabase/Vercel CLI only,
+#   no VS Code / claude CLI / codex / login. AUTOFROG_KIT_EDITION=app does the same for tests.
 #
 # KEEP THIS FILE ASCII-ONLY. Windows PowerShell 5.1 "irm" decodes a response without a charset
 # (GitHub releases and Vercel send application/octet-stream) as ISO-8859-1, so any Korean here
@@ -23,12 +26,14 @@ $ProgressPreference = 'SilentlyContinue'
 
 $ZipUrl = if ($env:AUTOFROG_KIT_ZIP) { $env:AUTOFROG_KIT_ZIP } else { 'https://github.com/d-onworks/autofrog-installkit/releases/latest/download/autofrog-setup-kit.zip' }
 $Auto = ($env:AUTOFROG_AUTO -eq '1')
+$Edition = "$env:AUTOFROG_KIT_EDITION"  # EDITION
 $KitHome = Join-Path $env:LOCALAPPDATA 'AutoFrogKit'
 $Dest = Join-Path $KitHome 'kit'
 $PS = Join-Path $PSHOME 'powershell.exe'
 
 Write-Host ''
-Write-Host '  AutoFrog setup kit - downloading (internet connection needed) ...' -ForegroundColor Green
+if ($Edition -eq 'app') { Write-Host '  Claude Code one-click installer (app edition) - downloading (internet connection needed) ...' -ForegroundColor Green }
+else { Write-Host '  AutoFrog setup kit - downloading (internet connection needed) ...' -ForegroundColor Green }
 $tmp = Join-Path $env:TEMP ('autofrog-kit-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
 $ok = $false
@@ -58,6 +63,7 @@ try {
 if ($ok) {
     $setupArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $Dest 'scripts\setup.ps1'), '-OneLiner')
     if ($Auto) { $setupArgs += '-Auto' }
+    if ($Edition) { $setupArgs += @('-Edition', $Edition) }
     & $PS @setupArgs
     $global:LASTEXITCODE = $LASTEXITCODE
     # Load the new PATH into this window too, so claude / codex work here right away.

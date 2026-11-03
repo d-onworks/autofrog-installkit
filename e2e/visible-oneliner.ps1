@@ -7,7 +7,9 @@ $host.UI.RawUI.WindowTitle="AutoFrog $Scenario - $Label (one-liner)"
 Write-Host "AutoFrog E2E $Scenario $Label - one-line installer"
 # C:\e2e\live.flag 가 있으면 진짜 주소(autofrog.kr → 최신 릴리즈)로 — 수강생과 똑같은 한 줄
 $live=Test-Path 'C:\e2e\live.flag'
-$kitUrl=if ($live) { 'https://autofrog.kr/kit.ps1' } else { 'http://localhost:8765/kit.ps1' }
+# C:\e2e\edition.flag = 'app' 이면 클로드 코드 앱용 주소(kosi.ps1 → install-app.ps1 · 2026-11-03)
+$page=if ((Test-Path 'C:\e2e\edition.flag') -and (Get-Content 'C:\e2e\edition.flag' -Raw).Trim() -eq 'app') { 'kosi.ps1' } else { 'kit.ps1' }
+$kitUrl=if ($live) { "https://autofrog.kr/$page" } else { "http://localhost:8765/$page" }
 if ($live) { Remove-Item Env:\AUTOFROG_KIT_ZIP -ErrorAction SilentlyContinue } else { $env:AUTOFROG_KIT_ZIP='http://localhost:8765/autofrog-setup-kit.zip' }
 Write-Host "kit url: $kitUrl"
 $env:AUTOFROG_AUTO='1'

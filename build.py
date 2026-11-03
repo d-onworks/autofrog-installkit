@@ -6,7 +6,8 @@
 클로드 코드는 재배포 금지라 묶지 않는다(설치할 때 공식 서버에서 받는다). Vercel CLI 는 npm 으로 받는다.
 
 사용: python3 build.py           → dist/autofrog-setup-kit-YYYYMMDD.zip  (설치 파일 동봉판 · 수강생용 드라이브)
-      python3 build.py --online  → dist/autofrog-setup-kit.zip + dist/install.ps1 (온라인판·한 줄 설치 · 공개용 깃허브 Releases)
+      python3 build.py --online  → dist/autofrog-setup-kit.zip + dist/install.ps1 + dist/install-app.ps1(클로드 코드 앱용)
+                                   (온라인판·한 줄 설치 · 공개용 깃허브 Releases)
       python3 build.py --mac     → dist/autofrog-setup-kit-mac.zip       (맥 온라인판 · kit-mac/ 을 그대로 묶음)
 온라인판은 payload 없이 스크립트만 담는다. 설치할 때 kit/scripts/online.ps1 이 공식 배포처에서 최신판을 받는다.
 이름이 늘 같아야 https://github.com/d-onworks/autofrog-installkit/releases/latest/download/autofrog-setup-kit.zip 이 고정 주소가 된다.
@@ -194,6 +195,12 @@ def main():
         raw = (HERE / "bootstrap" / "install.ps1").read_text(encoding="utf-8").replace("\r\n", "\n").replace("\n", "\r\n")
         boot.write_bytes(raw.encode("ascii"))  # 한글이 섞이면 여기서 멈춘다
         print(f"한 줄 설치: {boot}  sha256 {sha256(boot)}")
+        # 클로드 코드 앱용(2026-11-03 · autofrog.kr/kosi.ps1): 같은 파일에서 EDITION 줄만 'app' 으로 고정
+        line = '$Edition = "$env:AUTOFROG_KIT_EDITION"  # EDITION'
+        assert raw.count(line) == 1, "install.ps1 의 EDITION 줄이 없음"
+        boot_app = DIST / "install-app.ps1"
+        boot_app.write_bytes(raw.replace(line, "$Edition = 'app'  # EDITION (install-app.ps1)").encode("ascii"))
+        print(f"앱용 한 줄 설치: {boot_app}  sha256 {sha256(boot_app)}")
 
 
 if __name__ == "__main__":

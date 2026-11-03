@@ -3,7 +3,11 @@
 #       → Vercel CLI → 클로드 코드 → 코덱스(+확인 없이 바로 실행 설정) → VS Code 설정 → 버전 표 검증
 # 관리자 권한 없이 돌아가게 짰다(전부 내 계정 폴더에 설치). PowerShell 5.1 호환, UTF-8(BOM) 저장.
 # -OneLiner : 한 줄 설치(bootstrap/install.ps1)가 불렀다 — 끝나면 이어서 로그인할지 묻고, 창이 바로 닫히지 않게 Enter 를 기다린다
-param([switch]$Auto, [switch]$OneLiner)
+# -Edition app : 클로드 코드 앱(데스크톱)용(2026-11-03 대표 지시 · 중소벤처기업연구원 교육) — 앱은 이미 깔려 있으니
+#   Git · Node.js · GitHub/Supabase/Vercel CLI 만 깔고 VS Code · 클로드 CLI · 코덱스 · 로그인은 뺀다(로그인은 교육 당일 강사와).
+#   앱이 쓰는 Git Bash 를 CLAUDE_CODE_GIT_BASH_PATH 로 알려 주고, 검증도 Git Bash 안에서 한 번 더 한다.
+param([switch]$Auto, [switch]$OneLiner, [ValidateSet('', 'app')][string]$Edition = '')
+$AppEdition = ($Edition -eq 'app')
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -69,7 +73,8 @@ function Expand-Zip([string]$zip, [string]$dest) {
     Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force
 }
 
-Write-Title "오토프로그 설치 키트 ($($Manifest.built))"
+if ($AppEdition) { Write-Title "클로드 코드 원클릭 설치 프로그램 — 앱용 ($($Manifest.built))" }
+else { Write-Title "오토프로그 설치 키트 ($($Manifest.built))" }
 Write-Host '  필요한 프로그램을 차례로 설치합니다. 창을 닫지 말고 기다려 주세요.' -ForegroundColor White
 Write-Host "  기록 파일: $logFile" -ForegroundColor DarkGray
 
@@ -98,7 +103,7 @@ Invoke-Step 'precheck' '0. 사전 점검' {
         $notes += 'gpo-execution-policy'
     }
 
-    $code = Get-Process -Name Code -ErrorAction SilentlyContinue
+    $code = if ($AppEdition) { $null } else { Get-Process -Name Code -ErrorAction SilentlyContinue }
     if ($code) {
         if ($Auto) {
             $notes += 'vscode-running'
@@ -112,14 +117,23 @@ Invoke-Step 'precheck' '0. 사전 점검' {
     }
 
     $hosts = @(
-        @{ n = '클로드 다운로드';  u = 'https://downloads.claude.ai/claude-code-releases/latest' },
         @{ n = 'npm 저장소';       u = 'https://registry.npmjs.org/' },
-        @{ n = 'GitHub';          u = 'https://github.com/' },
-        @{ n = 'VS Code 확장';     u = 'https://marketplace.visualstudio.com/'; method = 'Get' }
+        @{ n = 'GitHub';          u = 'https://github.com/' }
     )
+    if (-not $AppEdition) {
+        $hosts += @{ n = '클로드 다운로드'; u = 'https://downloads.claude.ai/claude-code-releases/latest' }
+        $hosts += @{ n = 'VS Code 확장';    u = 'https://marketplace.visualstudio.com/'; method = 'Get' }
+    }
     if ($Online) {
         $hosts += @{ n = 'Node.js 배포처'; u = 'https://nodejs.org/dist/index.json' }
-        $hosts += @{ n = 'VS Code 배포처'; u = 'https://update.code.visualstudio.com/api/update/win32-x64-user/stable/latest'; method = 'Get' }
+        if (-not $AppEdition) { $hosts += @{ n = 'VS Code 배포처'; u = 'https://update.code.visualstudio.com/api/update/win32-x64-user/stable/latest'; method = 'Get' } }
+    }
+    if ($AppEdition) {
+        # 클로드 데스크톱 앱이 보이는지만 알려 준다(못 찾아도 설치는 계속 — 앱 설치 위치가 PC 마다 다를 수 있다)
+        $appSeen = (Test-Path (Join-Path $env:LOCALAPPDATA 'AnthropicClaude')) -or [bool](Get-AppxPackage -Name '*Claude*' -ErrorAction SilentlyContinue)
+        if ($appSeen) { Write-Ok '클로드 앱이 설치돼 있습니다.' }
+        else { Write-Warn2 '클로드 앱을 찾지 못했습니다. 설치는 계속합니다 — 끝난 뒤 claude.ai/download 에서 앱을 설치하세요.' }
+        $notes += "claude-app=$appSeen"
     }
     foreach ($h in $hosts) {
         try {
@@ -287,6 +301,7 @@ function Find-CodeCmd {
     }
     return $null
 }
+if (-not $AppEdition) {
 Invoke-Step 'vscode' '4. VS Code 설치' {
     $code = Find-CodeCmd
     if ($code) { Write-Skip "이미 설치돼 있습니다: $code"; Set-Result 'vscode' 'SKIP' $code; return }
@@ -303,6 +318,7 @@ Invoke-Step 'vscode' '4. VS Code 설치' {
     Update-SessionPath
     Write-Ok "VS Code 설치 완료: $code"
     Set-Result 'vscode' 'OK' $code
+}
 }
 
 # ── 5. PowerShell 실행 정책 ───────────────────────────────
@@ -341,6 +357,35 @@ Invoke-Step 'vercel' '6. Vercel CLI 설치' {
     Set-Result 'vercel' 'OK' $v
 }
 
+# ── 앱용: 클로드 코드 앱이 쓸 Git Bash 알려 주기 ─────────────────
+# 윈도우의 클로드 코드는 명령을 Git Bash 로 돌린다. 내 계정 폴더에 깐 Git 도 찾게 CLAUDE_CODE_GIT_BASH_PATH 를 둔다.
+function Find-GitBash {
+    $git = Find-Exe 'git'
+    $cands = @()
+    if ($git) { $cands += (Join-Path (Split-Path (Split-Path $git -Parent) -Parent) 'bin\bash.exe') }
+    $cands += @("$env:LOCALAPPDATA\Programs\Git\bin\bash.exe", "$env:ProgramFiles\Git\bin\bash.exe")
+    foreach ($c in $cands) { if (Test-Path -LiteralPath $c) { return $c } }
+    return $null
+}
+if ($AppEdition) {
+Invoke-Step 'gitbash' '6-1. 클로드 코드 앱 연결 (Git Bash)' {
+    $cur = [string](Get-ItemProperty 'HKCU:\Environment' -ErrorAction SilentlyContinue).CLAUDE_CODE_GIT_BASH_PATH
+    if ($cur -and (Test-Path -LiteralPath $cur)) {
+        Write-Skip "이미 연결돼 있습니다: $cur"
+        $env:CLAUDE_CODE_GIT_BASH_PATH = $cur
+        Set-Result 'gitbash' 'SKIP' $cur
+        return
+    }
+    $bash = Find-GitBash
+    if (-not $bash) { throw 'Git Bash(bash.exe)를 찾지 못했습니다. Git 설치가 끝났는지 확인하세요.' }
+    Set-UserEnv 'CLAUDE_CODE_GIT_BASH_PATH' $bash
+    $env:CLAUDE_CODE_GIT_BASH_PATH = $bash
+    Write-Ok "클로드 코드 앱이 쓸 Git Bash: $bash"
+    Set-Result 'gitbash' 'OK' $bash
+}
+}
+
+if (-not $AppEdition) {
 # ── 7. 클로드 코드 ────────────────────────────────────────
 function Install-ClaudeNative {
     # 공식 설치 스크립트(claude.ai/install.ps1)와 같은 일을 한다: 최신 버전 → 체크섬 확인 → claude install
@@ -478,6 +523,7 @@ Invoke-Step 'extras' '9. 바로가기 명령과 VS Code 설정' {
     }
     Set-Result 'extras' 'OK' ($notes -join ', ')
 }
+}
 
 # ── 10. 검증: 새 창에서 버전 확인 ──────────────────────────
 Write-Title '10. 설치 확인 (새 창 기준)'
@@ -485,6 +531,7 @@ Update-SessionPath
 $verify = @'
 $ErrorActionPreference = 'Continue'
 $tools = [ordered]@{ git='git'; node='node'; npm='npm'; npx='npx'; gh='gh'; supabase='supabase'; vercel='vercel'; claude='claude'; codex='codex'; code='code' }
+if ('__EDITION__' -eq 'app') { foreach ($k in 'claude', 'codex', 'code') { $tools.Remove($k) } }
 $out = [ordered]@{}
 foreach ($k in $tools.Keys) {
     $cmd = Get-Command $tools[$k] -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -499,8 +546,22 @@ foreach ($k in $tools.Keys) {
     } catch { $v = $_.Exception.Message; $ok = $false }
     $out[$k] = [ordered]@{ ok = $ok; version = $v; path = $cmd.Source }
 }
+if ('__EDITION__' -eq 'app') {
+    # 클로드 코드 앱과 같은 조건: Git Bash 안에서 7개 명령이 다 보이고 vercel 이 실제로 도는지
+    $bash = [string](Get-ItemProperty 'HKCU:\Environment' -ErrorAction SilentlyContinue).CLAUDE_CODE_GIT_BASH_PATH
+    $row = [ordered]@{ ok = $false; version = ''; path = $bash }
+    if ($bash -and (Test-Path -LiteralPath $bash)) {
+        $sh = 'miss=; for t in git node npm npx gh supabase vercel; do command -v $t >/dev/null 2>&1 || miss=$miss$t,; done; vercel --version >/dev/null 2>&1 || miss=${miss}vercel-run,; echo miss=$miss'
+        $lines = @(& $bash -lc $sh 2>&1 | ForEach-Object { "$_" })
+        $last = ($lines | Where-Object { $_ -like 'miss=*' } | Select-Object -Last 1)
+        if ($last -eq 'miss=') { $row.ok = $true; $row.version = '7개 명령 모두 보임' }
+        else { $row.version = "빠진 것: $($last -replace '^miss=', '')" }
+    } else { $row.version = 'Git Bash 경로 없음' }
+    $out['bash'] = $row
+}
 $out | ConvertTo-Json -Depth 4 -Compress
 '@
+$verify = $verify.Replace('__EDITION__', $Edition)
 # 실행 정책을 우회하지 않고 수강생이 여는 새 PowerShell 창과 같은 조건으로 확인한다
 # (명령 문자열로 넘기면 확인 스크립트 자체는 정책에 안 걸리고, 그 안의 vercel.ps1 같은 것은 걸린다)
 $enc64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($verify))
@@ -517,6 +578,7 @@ try { $verified = ($vr.Out -split "`n" | Where-Object { $_.Trim().StartsWith('{'
 if (-not $verified) { $verified = [pscustomobject]@{}; Write-Fail "확인 단계 실행 실패: $($vr.Out)" }
 
 $labels = [ordered]@{ git='Git'; node='Node.js'; npm='npm'; npx='npx'; gh='GitHub CLI'; supabase='Supabase CLI'; vercel='Vercel CLI'; claude='클로드 코드'; codex='코덱스'; code='VS Code' }
+if ($AppEdition) { foreach ($k in 'claude', 'codex', 'code') { $labels.Remove($k) }; $labels['bash'] = '앱(Git Bash)' }
 $allOk = (@($Results.Values | Where-Object { $_.state -eq 'FAIL' }).Count -eq 0)
 Write-Host ''
 foreach ($k in $labels.Keys) {
@@ -535,6 +597,7 @@ if ($Online) { Clear-OnlineDownloads }
 # 스마트 앱 컨트롤이 막지 않는다(인터넷 표시가 붙은 .bat 만 막는다 · 2026-10-21 실측).
 # zip 에서 풀었으면 풀린 폴더를 지워도 되게 스크립트를 내 계정 폴더로 복사해 둔다.
 $loginShortcut = $null
+if (-not $AppEdition) {
 try {
     $kitScripts = Join-Path $script:KitHome 'kit\scripts'
     if ((Resolve-Path $PSScriptRoot).Path.TrimEnd('\') -ne $kitScripts) {
@@ -556,11 +619,12 @@ try {
     Write-Warn2 "바탕화면 로그인 아이콘을 만들지 못했습니다: $($_.Exception.Message)"
     $loginShortcut = $null
 }
+}
 
 # 새 PATH 를 물려받은 VS Code 를 이 창에서 띄운다(이미 켜진 VS Code 는 옛 PATH 를 쓴다)
 # 사람이 보는 한 줄 설치(-OneLiner, -Auto 아님)는 맨 마지막 Enter 뒤에 연다 — 먼저 열면 VS Code 가 이 창을 덮어
 # 「이어서 로그인할까요?」 질문이 가려진다(2026-10-28 샌드박스 재시험).
-$code = Find-CodeCmd
+$code = if ($AppEdition) { $null } else { Find-CodeCmd }
 $openCode = [bool]($code -and -not (Get-Process -Name Code -ErrorAction SilentlyContinue))
 $deferCode = ($OneLiner -and -not $Auto)
 function Open-VSCodeNow {
@@ -572,7 +636,7 @@ if ($openCode -and -not $deferCode) { Open-VSCodeNow }
 $openedCode = $openCode
 
 $report = [ordered]@{
-    kit = $Manifest.built; online = $Online; finished = (Get-Date).ToString('s'); user = $env:USERNAME
+    kit = $Manifest.built; edition = $Edition; online = $Online; finished = (Get-Date).ToString('s'); user = $env:USERNAME
     allOk = $allOk; openedCode = $openedCode; loginShortcut = $loginShortcut
     installers = @($script:Installers.Keys | ForEach-Object { [ordered]@{ key = $_; version = $script:Installers[$_].Version } })
     steps = $Results; verify = $verified
@@ -582,7 +646,12 @@ $reportFile = Join-Path $script:LogDir "result-$stamp.json"
 Copy-Item $reportFile (Join-Path $script:LogDir 'result-latest.json') -Force
 
 Write-Host ''
-if ($allOk) {
+if ($allOk -and $AppEdition) {
+    Write-Host '  모든 설치가 끝났습니다.' -ForegroundColor Green
+    Write-Host '  다음 단계: 클로드 앱을 완전히 끄고 다시 켜세요 — 그래야 새로 깐 프로그램을 알아봅니다.' -ForegroundColor White
+    Write-Host '    (창의 X 가 아니라, 화면 오른쪽 아래 작업 표시줄의 클로드 아이콘을 오른쪽 클릭 → 종료)' -ForegroundColor White
+    Write-Host '  로그인(GitHub · Vercel · Supabase)은 교육 당일 강사와 함께 합니다.' -ForegroundColor White
+} elseif ($allOk) {
     Write-Host '  모든 설치가 끝났습니다.' -ForegroundColor Green
     if ($loginShortcut) {
         Write-Host '  다음 단계: 로그인 — 바탕화면의 [오토프로그 로그인] 아이콘을 두 번 누르세요.' -ForegroundColor White
@@ -596,7 +665,7 @@ if ($allOk) {
 try { Stop-Transcript | Out-Null } catch {}
 if ($OneLiner -and -not $Auto) {
     # Win+R 로 연 창은 끝나면 바로 닫힌다 — 로그인으로 이어 주고, 마지막엔 Enter 를 기다린다
-    if ($allOk) {
+    if ($allOk -and -not $AppEdition) {
         Write-Host ''
         $a = Read-Host '  이어서 로그인할까요? (Enter = 예 / n = 나중에 바탕화면 [오토프로그 로그인] 아이콘으로)'
         if ($a -notmatch '^(n|no|아니)') {

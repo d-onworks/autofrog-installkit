@@ -35,6 +35,13 @@ $tests=@(
  @{id='claude-version';command='claude --version'},
  @{id='codex-version';command='codex --version'}
 )
+# 클로드 코드 앱용(2026-11-03): claude·codex 는 깔지 않는다 — 대신 앱이 쓰는 Git Bash 안에서 같은 도구가 도는지 본다
+if ((Test-Path 'C:\e2e\edition.flag') -and (Get-Content 'C:\e2e\edition.flag' -Raw).Trim() -eq 'app') {
+ $gb='((Get-ItemProperty HKCU:\Environment).CLAUDE_CODE_GIT_BASH_PATH)'
+ $tests=@($tests | Where-Object { $_.id -notin 'claude-version','codex-version' })
+ $tests+=@{id='gitbash-tools';command=$gb+" -lc 'git --version && node -v && npm -v && npx --version && gh --version && supabase --version && vercel --version'"}
+ $tests+=@{id='gitbash-gh-help';command=$gb+" -lc 'gh auth login --help'"}
+}
 $report=[ordered]@{identity=[Security.Principal.WindowsIdentity]::GetCurrent().Name;userProfile=$env:USERPROFILE;policy=[string](Get-ExecutionPolicy);processPolicy=$env:PSExecutionPolicyPreference;path=$env:PATH;completed=$false;current='';tests=@()}
 foreach($test in $tests) {
  $report.current=$test.id;Save $report "$out\command-checks.json"

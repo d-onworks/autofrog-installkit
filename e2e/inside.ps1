@@ -207,7 +207,15 @@ try {
     while (-not (Test-Path (Join-Path $Out 'explorer-complete.txt')) -and (Get-Date) -lt $deadline) { Start-Sleep 2 }
     Save-Json @{completed=(Test-Path (Join-Path $Out 'explorer-complete.txt'));requestedIdentity=$id.Name;launcherPid=$exp.Id;arguments=$explorerArgs} (Join-Path $Out 'explorer.json')
     Set-Phase 'login-check'
-    if ($Method -eq 'OneLiner') {
+    $appEdition=((Test-Path 'C:\e2e\edition.flag') -and (Get-Content 'C:\e2e\edition.flag' -Raw).Trim() -eq 'app')
+    if ($appEdition) {
+        # 앱용은 로그인 아이콘·VS Code·claude·codex 를 만들지 않아야 한다 + 앱처럼 새로 뜬 Git Bash 에서 도구가 보여야 한다
+        $gbPath=[string](Get-ItemProperty 'HKCU:\Environment').CLAUDE_CODE_GIT_BASH_PATH
+        $absent=[ordered]@{loginShortcut=(Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) '오토프로그 로그인.lnk'));vscode=(Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code'));claudeCli=(Test-Path (Join-Path $env:USERPROFILE '.local\bin\claude.exe'));codex=(Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex'))}
+        $sh='for t in git node npm npx gh supabase vercel; do printf %s= $t; command -v $t || echo MISSING; done; vercel --version'
+        $login=Run-Process $gbPath ('-lc "'+$sh+'"') (Join-Path $Out 'login') 180 -Fresh
+        Save-Json @{gitBashPath=$gbPath;gitBashExists=(Test-Path -LiteralPath $gbPath);shouldBeAbsent=$absent} (Join-Path $Out 'app-edition.json')
+    } elseif ($Method -eq 'OneLiner') {
         # 바탕화면 아이콘이 가리키는 그대로(-Pause 대신 -CheckOnly)
         $login=Run-Process $lnk.target ($lnk.arguments -replace '-Pause$','-CheckOnly') (Join-Path $Out 'login') 180
     } elseif (Test-Path (Join-Path $kit '2-login.bat')) {

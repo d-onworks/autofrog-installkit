@@ -10,6 +10,7 @@ while ($l.IsListening) {
     $p=$ctx.Request.Url.AbsolutePath.TrimStart('/')
     try {
         if ($p -eq 'kit.ps1') { $res.StatusCode=302; $res.RedirectLocation='http://localhost:8765/install.ps1' }
+        elseif ($p -eq 'kosi.ps1') { $res.StatusCode=302; $res.RedirectLocation='http://localhost:8765/install-app.ps1' }
         else {
             $f=Join-Path $www $p
             if ($p -and (Test-Path -LiteralPath $f -PathType Leaf)) {

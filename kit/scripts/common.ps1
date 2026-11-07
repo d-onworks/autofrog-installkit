@@ -85,9 +85,37 @@ function Invoke-Native([string]$exe, [string[]]$argList) {
     $old = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        $out = & $exe @argList 2>&1 | ForEach-Object { "$_" }
+        # 키보드 입력은 빈 것으로 넘긴다 — 외부 프로그램(tar·code.cmd 등)이 입력을 기다려 Enter 를 쳐야 넘어가는 일이 없게(2026-11-07)
+        $out = $null | & $exe @argList 2>&1 | ForEach-Object { "$_" }
         return [pscustomobject]@{ Code = $LASTEXITCODE; Out = ($out -join "`n") }
     } finally { $ErrorActionPreference = $old }
+}
+
+# 빠른 편집(QuickEdit) 끄기 — 옛 명령창(conhost)은 창을 한 번 클릭하면 「선택」 상태가 돼 출력이 멈추고,
+# 설치도 같이 멈춘다(Enter 를 쳐야 풀림). 2026-10-28 시험 하네스에서 실측, 2026-11-07 대표 촬영 중 VS Code 단계에서 재발.
+# 설치 동안만 끄고 끝나면 원래대로 돌린다(설치 뒤엔 마우스로 글자 복사가 되게). 실패해도 설치는 계속한다.
+$script:OrigConsoleMode = $null
+function Disable-QuickEdit {
+    if ($null -ne $script:OrigConsoleMode) { return }
+    try {
+        if (-not ('AutoFrog.AfConsole' -as [type])) {
+            Add-Type -Namespace AutoFrog -Name AfConsole -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int n);
+[DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr h, out uint m);
+[DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr h, uint m);
+'@
+        }
+        $h = [AutoFrog.AfConsole]::GetStdHandle(-10)
+        [uint32]$m = 0
+        if (-not [AutoFrog.AfConsole]::GetConsoleMode($h, [ref]$m)) { return }
+        $n = ([int64]$m -band 0xFFFFFFBF) -bor 0x80   # QUICK_EDIT(0x40) 끄고 EXTENDED_FLAGS(0x80) 켬
+        if ([AutoFrog.AfConsole]::SetConsoleMode($h, [uint32]$n)) { $script:OrigConsoleMode = $m }
+    } catch {}
+}
+function Restore-QuickEdit {
+    if ($null -eq $script:OrigConsoleMode) { return }
+    try { [void][AutoFrog.AfConsole]::SetConsoleMode([AutoFrog.AfConsole]::GetStdHandle(-10), [uint32]$script:OrigConsoleMode) } catch {}
+    $script:OrigConsoleMode = $null
 }
 
 function Test-IsAdmin {

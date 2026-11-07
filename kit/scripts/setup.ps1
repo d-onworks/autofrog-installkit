@@ -1,4 +1,4 @@
-# 오토프로그 바이브코딩 설치 키트 — 한 번에 설치
+﻿# 오토프로그 바이브코딩 설치 키트 — 한 번에 설치
 # 순서: 사전점검 → Git → Node.js → GitHub CLI·Supabase CLI → VS Code → PATH → 실행정책
 #       → Vercel CLI → 클로드 코드 → 코덱스(+확인 없이 바로 실행 설정) → VS Code 설정 → 버전 표 검증
 # 관리자 권한 없이 돌아가게 짰다(전부 내 계정 폴더에 설치). PowerShell 5.1 호환, UTF-8(BOM) 저장.
@@ -14,6 +14,7 @@ $ProgressPreference = 'SilentlyContinue'
 . (Join-Path $PSScriptRoot 'common.ps1')
 
 . (Join-Path $PSScriptRoot 'online.ps1')
+Disable-QuickEdit   # 창을 클릭해도 설치가 멈추지 않게(끝에서 Restore-QuickEdit)
 
 $KitRoot  = Split-Path $PSScriptRoot -Parent
 $Payload  = Join-Path $KitRoot 'payload'
@@ -122,6 +123,9 @@ Invoke-Step 'precheck' '0. 사전 점검' {
     )
     if (-not $AppEdition) {
         $hosts += @{ n = '클로드 다운로드'; u = 'https://downloads.claude.ai/claude-code-releases/latest' }
+        # 코덱스는 GitHub 릴리스에서 받는다 — 「GitHub」 한 줄로 묶여 있으면 코덱스가 빠진 것처럼 보여(2026-11-07 대표) 따로 보인다.
+        # 실제 설치 파일 주소(→ release-assets 저장소로 넘어감)까지 확인해 방화벽이 그쪽만 막는 경우도 잡는다.
+        if ($Online) { $hosts += @{ n = '코덱스 다운로드'; u = 'https://github.com/openai/codex/releases/latest/download/codex-package-x86_64-pc-windows-msvc.tar.gz' } }
         $hosts += @{ n = 'VS Code 확장';    u = 'https://marketplace.visualstudio.com/'; method = 'Get' }
     }
     if ($Online) {
@@ -174,6 +178,7 @@ if ((Get-SacState) -eq 1 -and $env:AUTOFROG_IGNORE_SAC -ne '1') {
         }
     }
     if ($turned) {
+        Disable-QuickEdit   # 켜져 있을 땐 막혔을 수 있다 — 끈 뒤 한 번 더
         Write-Ok '스마트 앱 컨트롤을 껐습니다. 설치를 이어서 합니다.'
         Set-Result 'sac' 'OK' 'turned-off'
     } else {
@@ -186,6 +191,7 @@ if ((Get-SacState) -eq 1 -and $env:AUTOFROG_IGNORE_SAC -ne '1') {
             try { Start-Process 'windowsdefender://appbrowser' } catch {}
             [void](Read-Host '  Enter 를 누르면 끝납니다')
         }
+        Restore-QuickEdit
         try { Stop-Transcript | Out-Null } catch {}
         exit 3
     }
@@ -662,6 +668,7 @@ if ($allOk -and $AppEdition) {
     Write-Host '  일부 설치가 안 됐습니다. 위 [실패] 줄과 아래 기록 파일을 강사에게 보여 주세요.' -ForegroundColor Yellow
     Write-Host "  $logFile" -ForegroundColor Yellow
 }
+Restore-QuickEdit
 try { Stop-Transcript | Out-Null } catch {}
 if ($OneLiner -and -not $Auto) {
     # Win+R 로 연 창은 끝나면 바로 닫힌다 — 로그인으로 이어 주고, 마지막엔 Enter 를 기다린다

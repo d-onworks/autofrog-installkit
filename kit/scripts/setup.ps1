@@ -14,7 +14,6 @@ $ProgressPreference = 'SilentlyContinue'
 . (Join-Path $PSScriptRoot 'common.ps1')
 
 . (Join-Path $PSScriptRoot 'online.ps1')
-Disable-QuickEdit   # 창을 클릭해도 설치가 멈추지 않게(끝에서 Restore-QuickEdit)
 
 $KitRoot  = Split-Path $PSScriptRoot -Parent
 $Payload  = Join-Path $KitRoot 'payload'
@@ -208,7 +207,6 @@ if ((Get-SacState) -eq 1 -and $env:AUTOFROG_IGNORE_SAC -ne '1') {
         }
     }
     if ($turned) {
-        Disable-QuickEdit   # 켜져 있을 땐 막혔을 수 있다 — 끈 뒤 한 번 더
         Write-Ok '스마트 앱 컨트롤을 껐습니다. 설치를 이어서 합니다.'
         Set-Result 'sac' 'OK' 'turned-off'
     } else {
@@ -226,6 +224,10 @@ if ((Get-SacState) -eq 1 -and $env:AUTOFROG_IGNORE_SAC -ne '1') {
         exit 3
     }
 }
+
+# 창을 클릭해도 설치가 멈추지 않게 빠른 편집을 끈다(끝에서 Restore-QuickEdit). 스마트 앱 컨트롤 단계 뒤에 두는 이유:
+# 켜진 PC 에서 Add-Type 을 먼저 돌리면 차단 알림이 뜰 수 있어서다.
+Disable-QuickEdit
 
 # ── 1. Git ────────────────────────────────────────────────
 Invoke-Step 'git' '1. Git 설치' {

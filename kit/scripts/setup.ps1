@@ -76,7 +76,37 @@ function Expand-Zip([string]$zip, [string]$dest) {
 
 if ($AppEdition) { Write-Title "클로드 코드 원클릭 설치 프로그램 — 앱용 ($($Manifest.built))" }
 else { Write-Title "오토프로그 설치 키트 ($($Manifest.built))" }
-Write-Host '  필요한 프로그램을 차례로 설치합니다. 창을 닫지 말고 기다려 주세요.' -ForegroundColor White
+# 사전 안내 — 무엇을 깔고, 얼마나 걸리고, 중간에 누를 게 없다는 것(2026-11-07 대표: "클로드·코덱스 까는 게 처음 안내에 안 나온다")
+$verNote = if ($Online) { '모두 공식 배포처의 최신판' } else { '키트에 들어 있는 검증된 버전' }
+Write-Host ''
+Write-Host "  이 PC에 아래 프로그램을 차례로 설치합니다 ($verNote)" -ForegroundColor White
+if ($AppEdition) {
+    $plan = @(
+        '1. Git            — 코드 기록·클로드 앱이 쓰는 Git Bash',
+        '2. Node.js        — 웹 프로그램 실행 도구',
+        '3. GitHub CLI     — 코드 저장소 연결',
+        '   Supabase CLI   — 데이터베이스 연결',
+        '5. 실행 허용      — PowerShell 에서 위 명령들이 실행되게',
+        '6. Vercel CLI     — 웹사이트 배포',
+        '6-1. 클로드 코드 앱이 Git Bash 를 찾도록 연결')
+} else {
+    $plan = @(
+        '1. Git            — 코드 기록',
+        '2. Node.js        — 웹 프로그램 실행 도구',
+        '3. GitHub CLI     — 코드 저장소 연결',
+        '   Supabase CLI   — 데이터베이스 연결',
+        '4. VS Code        — 코드 편집기',
+        '5. 실행 허용      — PowerShell 에서 위 명령들이 실행되게',
+        '6. Vercel CLI     — 웹사이트 배포',
+        '7. 클로드 코드    — AI 코딩 도구 (Claude Code)',
+        '8. 코덱스         — AI 코딩 도구 (OpenAI Codex)',
+        '9. VS Code 한글 메뉴 · 클로드·코덱스 확장, 바로가기 명령 cc / cx')
+}
+foreach ($l in $plan) { Write-Host "     $l" -ForegroundColor Gray }
+Write-Host ''
+Write-Host '  걸리는 시간: 보통 3~10분 (인터넷 속도에 따라 다릅니다)' -ForegroundColor White
+Write-Host '  중간에 아무것도 누르지 않아도 끝까지 자동으로 진행됩니다. 창만 닫지 마세요.' -ForegroundColor White
+Write-Host '  (「스마트 앱 컨트롤」이 켜진 PC 는 처음에 한 번 물어봅니다 — Enter 후 관리자 확인 창에서 [예])' -ForegroundColor DarkGray
 Write-Host "  기록 파일: $logFile" -ForegroundColor DarkGray
 
 # zip 에서 풀린 파일의 "인터넷에서 받음" 표시를 지운다(보안 경고 방지)

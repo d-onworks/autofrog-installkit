@@ -6,8 +6,13 @@
 # -Edition app : 클로드 코드 앱(데스크톱)용(2026-11-03 대표 지시 · 중소벤처기업연구원 교육) — 앱은 이미 깔려 있으니
 #   Git · Node.js · GitHub/Supabase/Vercel CLI 만 깔고 VS Code · 클로드 CLI · 코덱스 · 로그인은 뺀다(로그인은 교육 당일 강사와).
 #   앱이 쓰는 Git Bash 를 CLAUDE_CODE_GIT_BASH_PATH 로 알려 주고, 검증도 Git Bash 안에서 한 번 더 한다.
-param([switch]$Auto, [switch]$OneLiner, [ValidateSet('', 'app')][string]$Edition = '')
+# -Edition cli : 클로드 코드(CLI)만 쓰는 수업용(2026-11-15 · 을지대 AX 캠프, install-eulji.ps1) — 기본판에서 VS Code(확장 포함)·
+#   코덱스(cx 포함)만 뺀다. 클로드 코드·cc 는 그대로, 로그인은 GitHub → Vercel → Supabase → 클로드 네 가지(login.ps1 이 설치 기록의 edition 을 읽는다).
+#   끝나면 VS Code 대신 "안내 페이지의 다음 단계(클로드 앱 설치)" 로 넘어가라고 알린다.
+param([switch]$Auto, [switch]$OneLiner, [ValidateSet('', 'app', 'cli')][string]$Edition = '')
 $AppEdition = ($Edition -eq 'app')
+$CliEdition = ($Edition -eq 'cli')
+$FullEdition = ($Edition -eq '')   # VS Code · 코덱스는 기본판에만
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -74,6 +79,7 @@ function Expand-Zip([string]$zip, [string]$dest) {
 }
 
 if ($AppEdition) { Write-Title "클로드 코드 원클릭 설치 프로그램 — 앱용 ($($Manifest.built))" }
+elseif ($CliEdition) { Write-Title "클로드 코드 원클릭 설치 프로그램 — 을지대 AX 캠프용 ($($Manifest.built))" }
 else { Write-Title "오토프로그 설치 키트 ($($Manifest.built))" }
 # 사전 안내 — 무엇을 깔고, 얼마나 걸리고, 중간에 누를 게 없다는 것(2026-11-07 대표: "클로드·코덱스 까는 게 처음 안내에 안 나온다")
 $verNote = if ($Online) { '모두 공식 배포처의 최신판' } else { '키트에 들어 있는 검증된 버전' }
@@ -88,6 +94,16 @@ if ($AppEdition) {
         '5. 실행 허용      — PowerShell 에서 위 명령들이 실행되게',
         '6. Vercel CLI     — 웹사이트 배포',
         '6-1. 클로드 코드 앱이 Git Bash 를 찾도록 연결')
+} elseif ($CliEdition) {
+    $plan = @(
+        '1. Git            — 코드 기록',
+        '2. Node.js        — 웹 프로그램 실행 도구',
+        '3. GitHub CLI     — 코드 저장소 연결',
+        '   Supabase CLI   — 데이터베이스 연결',
+        '5. 실행 허용      — PowerShell 에서 위 명령들이 실행되게',
+        '6. Vercel CLI     — 웹사이트 배포',
+        '7. 클로드 코드    — AI 코딩 도구 (Claude Code)',
+        '9. 바로가기 명령 cc (클로드 바로 실행)')
 } else {
     $plan = @(
         '1. Git            — 코드 기록',
@@ -133,7 +149,7 @@ Invoke-Step 'precheck' '0. 사전 점검' {
         $notes += 'gpo-execution-policy'
     }
 
-    $code = if ($AppEdition) { $null } else { Get-Process -Name Code -ErrorAction SilentlyContinue }
+    $code = if (-not $FullEdition) { $null } else { Get-Process -Name Code -ErrorAction SilentlyContinue }
     if ($code) {
         if ($Auto) {
             $notes += 'vscode-running'
@@ -152,14 +168,16 @@ Invoke-Step 'precheck' '0. 사전 점검' {
     )
     if (-not $AppEdition) {
         $hosts += @{ n = '클로드 다운로드'; u = 'https://downloads.claude.ai/claude-code-releases/latest' }
+        if ($FullEdition) {
         # 코덱스는 GitHub 릴리스에서 받는다 — 「GitHub」 한 줄로 묶여 있으면 코덱스가 빠진 것처럼 보여(2026-11-07 대표) 따로 보인다.
         # 실제 설치 파일 주소(→ release-assets 저장소로 넘어감)까지 확인해 방화벽이 그쪽만 막는 경우도 잡는다.
         if ($Online) { $hosts += @{ n = '코덱스 다운로드'; u = 'https://github.com/openai/codex/releases/latest/download/codex-package-x86_64-pc-windows-msvc.tar.gz' } }
         $hosts += @{ n = 'VS Code 확장';    u = 'https://marketplace.visualstudio.com/'; method = 'Get' }
+        }
     }
     if ($Online) {
         $hosts += @{ n = 'Node.js 배포처'; u = 'https://nodejs.org/dist/index.json' }
-        if (-not $AppEdition) { $hosts += @{ n = 'VS Code 배포처'; u = 'https://update.code.visualstudio.com/api/update/win32-x64-user/stable/latest'; method = 'Get' } }
+        if ($FullEdition) { $hosts += @{ n = 'VS Code 배포처'; u = 'https://update.code.visualstudio.com/api/update/win32-x64-user/stable/latest'; method = 'Get' } }
     }
     if ($AppEdition) {
         # 클로드 데스크톱 앱이 보이는지만 알려 준다(못 찾아도 설치는 계속 — 앱 설치 위치가 PC 마다 다를 수 있다)
@@ -339,7 +357,7 @@ function Find-CodeCmd {
     }
     return $null
 }
-if (-not $AppEdition) {
+if ($FullEdition) {
 Invoke-Step 'vscode' '4. VS Code 설치' {
     $code = Find-CodeCmd
     if ($code) { Write-Skip "이미 설치돼 있습니다: $code"; Set-Result 'vscode' 'SKIP' $code; return }
@@ -462,6 +480,7 @@ Invoke-Step 'claude' '7. 클로드 코드 설치' {
 }
 
 # ── 8. 코덱스 ─────────────────────────────────────────────
+if ($FullEdition) {
 function Install-CodexOffline {
     # 공식 설치기(chatgpt.com/codex/install.ps1)와 같은 폴더 구조로 깐다 → 나중에 `codex update` 가 그대로 된다
     $target = 'x86_64-pc-windows-msvc'
@@ -527,16 +546,19 @@ Invoke-Step 'codex' '8. 코덱스 설치' {
     [IO.File]::WriteAllText($cfg, $text, (New-Object Text.UTF8Encoding $false))
     Write-Ok "코덱스 설정: 확인 없이 바로 실행 ($cfg)"
 }
+}
 
 # ── 9. 바로가기 명령 · VS Code 설정 ────────────────────────
-Invoke-Step 'extras' '9. 바로가기 명령과 VS Code 설정' {
+# cli 판은 cc 만 만들고 VS Code 는 건드리지 않는다(이미 깔린 VS Code 가 있어도 확장·설정을 넣지 않는다).
+$extrasTitle = if ($CliEdition) { '9. 바로가기 명령' } else { '9. 바로가기 명령과 VS Code 설정' }
+Invoke-Step 'extras' $extrasTitle {
     $enc = New-Object Text.UTF8Encoding $false
-    [IO.File]::WriteAllText((Join-Path $script:KitBin 'cx.cmd'), "@echo off`r`ncodex --dangerously-bypass-approvals-and-sandbox %*`r`n", $enc)
+    if ($FullEdition) { [IO.File]::WriteAllText((Join-Path $script:KitBin 'cx.cmd'), "@echo off`r`ncodex --dangerously-bypass-approvals-and-sandbox %*`r`n", $enc) }
     [IO.File]::WriteAllText((Join-Path $script:KitBin 'cc.cmd'), "@echo off`r`nclaude --dangerously-skip-permissions %*`r`n", $enc)
-    Write-Ok 'cx = 코덱스 바로 실행, cc = 클로드 바로 실행'
+    if ($FullEdition) { Write-Ok 'cx = 코덱스 바로 실행, cc = 클로드 바로 실행' } else { Write-Ok 'cc = 클로드 바로 실행' }
 
     $notes = @()
-    $code = Find-CodeCmd
+    $code = if ($FullEdition) { Find-CodeCmd } else { $null }
     if ($code) {
         # 사용자 설정 파일이 없을 때만 만든다(있으면 손대지 않는다)
         $userDir = Join-Path $env:APPDATA 'Code\User'
@@ -570,6 +592,7 @@ $verify = @'
 $ErrorActionPreference = 'Continue'
 $tools = [ordered]@{ git='git'; node='node'; npm='npm'; npx='npx'; gh='gh'; supabase='supabase'; vercel='vercel'; claude='claude'; codex='codex'; code='code' }
 if ('__EDITION__' -eq 'app') { foreach ($k in 'claude', 'codex', 'code') { $tools.Remove($k) } }
+if ('__EDITION__' -eq 'cli') { foreach ($k in 'codex', 'code') { $tools.Remove($k) } }
 $out = [ordered]@{}
 foreach ($k in $tools.Keys) {
     $cmd = Get-Command $tools[$k] -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -617,6 +640,7 @@ if (-not $verified) { $verified = [pscustomobject]@{}; Write-Fail "확인 단계
 
 $labels = [ordered]@{ git='Git'; node='Node.js'; npm='npm'; npx='npx'; gh='GitHub CLI'; supabase='Supabase CLI'; vercel='Vercel CLI'; claude='클로드 코드'; codex='코덱스'; code='VS Code' }
 if ($AppEdition) { foreach ($k in 'claude', 'codex', 'code') { $labels.Remove($k) }; $labels['bash'] = '앱(Git Bash)' }
+if ($CliEdition) { foreach ($k in 'codex', 'code') { $labels.Remove($k) } }
 $allOk = (@($Results.Values | Where-Object { $_.state -eq 'FAIL' }).Count -eq 0)
 Write-Host ''
 foreach ($k in $labels.Keys) {
@@ -650,7 +674,7 @@ try {
         $sc.TargetPath = Join-Path $PSHOME 'powershell.exe'
         $sc.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $kitScripts 'login.ps1') + '" -Pause'
         $sc.WorkingDirectory = $env:USERPROFILE
-        $sc.Description = '오토프로그 설치 키트 — 클로드·코덱스·GitHub·Vercel·Supabase 로그인'
+        $sc.Description = if ($CliEdition) { '오토프로그 설치 키트 — GitHub·Vercel·Supabase·클로드 로그인' } else { '오토프로그 설치 키트 — 클로드·코덱스·GitHub·Vercel·Supabase 로그인' }
         $sc.Save()
     }
 } catch {
@@ -662,7 +686,7 @@ try {
 # 새 PATH 를 물려받은 VS Code 를 이 창에서 띄운다(이미 켜진 VS Code 는 옛 PATH 를 쓴다)
 # 사람이 보는 한 줄 설치(-OneLiner, -Auto 아님)는 맨 마지막 Enter 뒤에 연다 — 먼저 열면 VS Code 가 이 창을 덮어
 # 「이어서 로그인할까요?」 질문이 가려진다(2026-10-28 샌드박스 재시험).
-$code = if ($AppEdition) { $null } else { Find-CodeCmd }
+$code = if (-not $FullEdition) { $null } else { Find-CodeCmd }
 $openCode = [bool]($code -and -not (Get-Process -Name Code -ErrorAction SilentlyContinue))
 $deferCode = ($OneLiner -and -not $Auto)
 function Open-VSCodeNow {
@@ -689,6 +713,16 @@ if ($allOk -and $AppEdition) {
     Write-Host '  다음 단계: 클로드 앱을 완전히 끄고 다시 켜세요 — 그래야 새로 깐 프로그램을 알아봅니다.' -ForegroundColor White
     Write-Host '    (창의 X 가 아니라, 화면 오른쪽 아래 작업 표시줄의 클로드 아이콘을 오른쪽 클릭 → 종료)' -ForegroundColor White
     Write-Host '  로그인(GitHub · Vercel · Supabase)은 교육 당일 강사와 함께 합니다.' -ForegroundColor White
+} elseif ($allOk -and $CliEdition) {
+    # cli 판은 VS Code 를 열지 않는다 — 안내 페이지의 다음 단계(클로드 앱 설치)로 보낸다.
+    # 사람이 보는 한 줄 설치는 로그인 질문 뒤 맨 끝에서 알린다(여기서 먼저 알리면 로그인을 건너뛰고 창을 닫기 쉽다).
+    Write-Host '  모든 설치가 끝났습니다.' -ForegroundColor Green
+    if ($loginShortcut) {
+        Write-Host '  로그인(GitHub · Vercel · Supabase · 클로드)은 바탕화면 [오토프로그 로그인] 아이콘으로 언제든 다시 할 수 있습니다.' -ForegroundColor White
+    }
+    if (-not ($OneLiner -and -not $Auto)) {
+        Write-Host '  안내 페이지로 돌아가 다음 단계(클로드 앱 설치)로 넘어가세요.' -ForegroundColor White
+    }
 } elseif ($allOk) {
     Write-Host '  모든 설치가 끝났습니다.' -ForegroundColor Green
     if ($loginShortcut) {
@@ -710,6 +744,10 @@ if ($OneLiner -and -not $Auto) {
         if ($a -notmatch '^(n|no|아니)') {
             & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'login.ps1')
         }
+    }
+    if ($allOk -and $CliEdition) {
+        Write-Host ''
+        Write-Host '  설치가 끝났습니다. 안내 페이지로 돌아가 다음 단계(클로드 앱 설치)로 넘어가세요.' -ForegroundColor Green
     }
     Write-Host ''
     if ($openCode) {

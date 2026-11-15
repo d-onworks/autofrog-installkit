@@ -10,6 +10,8 @@
 # 하는 일: 최신 맥 키트 zip 을 받아 ~/.autofrog-kit/kit 에 풀고 → scripts/setup.sh --oneliner 를 이 창에서 돌린다
 #          (setup.sh 가 끝에 이어서 로그인할지 묻고, 나중에 쓸 autofrog-login 명령을 만든다). 여러 번 실행해도 안전하다.
 # 시험용 환경변수: AUTOFROG_KIT_ZIP(zip 주소·경로) · AUTOFROG_AUTO=1(묻지 않고 끝까지, E2E 용)
+# 판(2026-11-15): build.py 가 이 파일에서 EDITION 줄만 'cli' 로 고정해 install-eulji.sh(을지대 AX 캠프용)를 만든다.
+#   cli = VS Code·코덱스를 빼고 깔고, 로그인은 GitHub → Vercel → Supabase → 클로드 네 가지. 시험할 때는 AUTOFROG_KIT_EDITION=cli 로 같은 효과.
 #
 # ★맥 기본 bash 3.2 문법만. 전체를 함수로 감싸 맨 끝에서 부른다 — 받다가 끊겨도 반쪽 스크립트가 실행되지 않는다.
 # ★curl | bash 는 bash 의 입력이 파이프라서 read 가 키보드를 못 읽는다 → setup.sh 는 /dev/tty 를 입력으로 준다.
@@ -17,10 +19,17 @@
 autofrog_kit_main() {
     local zip_url="${AUTOFROG_KIT_ZIP:-https://github.com/d-onworks/autofrog-installkit/releases/latest/download/autofrog-setup-kit-mac.zip}"
     local kit_home="$HOME/.autofrog-kit" dest tmp src rc
+    local edition="${AUTOFROG_KIT_EDITION:-}"  # EDITION
     dest="$kit_home/kit"
+    # 판은 환경변수로 setup.sh 에 넘긴다(기본판은 아무것도 넘기지 않는다)
+    if [ -n "$edition" ]; then export AUTOFROG_KIT_EDITION="$edition"; fi
 
     echo
-    echo '  오토프로그 설치 키트를 내려받습니다 (인터넷 연결 필요)'
+    if [ "$edition" = cli ]; then
+        echo '  클로드 코드 원클릭 설치 프로그램(을지대 AX 캠프용)을 내려받습니다 (인터넷 연결 필요)'
+    else
+        echo '  오토프로그 설치 키트를 내려받습니다 (인터넷 연결 필요)'
+    fi
     tmp="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/autofrog-kit.XXXXXX")" || return 1
     if [ -f "$zip_url" ]; then
         /bin/cp "$zip_url" "$tmp/kit.zip"

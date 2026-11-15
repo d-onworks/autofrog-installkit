@@ -36,9 +36,13 @@ refresh_session_path() {
 }
 
 # 새 터미널 창·VS Code 터미널이 읽는 셸 설정 파일에 PATH 블록을 쓴다(여러 번 실행해도 블록은 하나)
+# write_path_block nocx : cx(코덱스) 별칭을 빼고 쓴다(cli 판 · 코덱스를 깔지 않으므로)
 write_path_block() {
     local f tmp
-    local block
+    local block cx_line
+    cx_line="alias cx='codex --dangerously-bypass-approvals-and-sandbox'
+"
+    [ "${1:-}" = nocx ] && cx_line=''
     block="$PATH_BEGIN
 # 이 블록은 오토프로그 설치 키트가 관리합니다. 지우면 claude·codex 명령을 못 찾습니다.
 for d in \"\$HOME/.local/bin\" \"\$HOME/.npm-global/bin\" \"\$HOME/.autofrog-kit/node/bin\" \"\$HOME/.autofrog-kit/bin\"; do
@@ -46,8 +50,7 @@ for d in \"\$HOME/.local/bin\" \"\$HOME/.npm-global/bin\" \"\$HOME/.autofrog-kit
 done
 export PATH
 # 바로가기: 터미널에서 직접 칠 때만 통하는 별칭. 맥의 cc 는 원래 C 컴파일러라 파일로 덮으면 npm 설치가 깨진다.
-alias cx='codex --dangerously-bypass-approvals-and-sandbox'
-alias cc='claude --dangerously-skip-permissions'
+${cx_line}alias cc='claude --dangerously-skip-permissions'
 $PATH_END"
     for f in "$HOME/.zprofile" "$HOME/.zshrc" "$HOME/.bash_profile"; do
         # bash 설정은 이미 있거나, 이 사람이 bash 를 기본 셸로 쓸 때만 만든다

@@ -7,6 +7,7 @@
 
 사용: python3 build.py           → dist/autofrog-setup-kit-YYYYMMDD.zip  (설치 파일 동봉판 · 수강생용 드라이브)
       python3 build.py --online  → dist/autofrog-setup-kit.zip + dist/install.ps1 + dist/install-app.ps1(클로드 코드 앱용)
+                                   + dist/install-eulji.ps1 · install-eulji.sh(을지대 AX 캠프용 cli 판 — VS Code·코덱스 뺌)
                                    (온라인판·한 줄 설치 · 공개용 깃허브 Releases)
       python3 build.py --mac     → dist/autofrog-setup-kit-mac.zip       (맥 온라인판 · kit-mac/ 을 그대로 묶음)
 온라인판은 payload 없이 스크립트만 담는다. 설치할 때 kit/scripts/online.ps1 이 공식 배포처에서 최신판을 받는다.
@@ -116,6 +117,17 @@ def text_for_windows(src: Path, dst: Path):
         dst.write_bytes(b"\xef\xbb\xbf" + raw.encode("utf-8"))
 
 
+def write_mac_eulji():
+    """을지대 AX 캠프용 맥 한 줄 설치(2026-11-15): install.sh 에서 EDITION 줄만 'cli' 로 고정한다.
+    판은 환경변수 AUTOFROG_KIT_EDITION 으로 setup.sh 에 넘어간다 — 맥 키트 zip(--mac)도 cli 판을 아는 새 것이어야 한다."""
+    raw = (HERE / "bootstrap" / "install.sh").read_bytes().replace(b"\r\n", b"\n").decode("utf-8")
+    line = 'local edition="${AUTOFROG_KIT_EDITION:-}"  # EDITION'
+    assert raw.count(line) == 1, "install.sh 의 EDITION 줄이 없음"
+    boot = DIST / "install-eulji.sh"
+    boot.write_bytes(raw.replace(line, "local edition='cli'  # EDITION (install-eulji.sh)").encode("utf-8"))
+    print(f"을지대(cli) 맥 한 줄 설치: {boot}  sha256 {sha256(boot)}")
+
+
 def build_mac():
     """맥판: 설치 파일 없이 스크립트만. LF 줄바꿈 그대로, .command·.sh 는 실행 권한(755)을 zip 에 기록한다
     (맥 기본 압축 풀기가 이 권한을 살려야 더블클릭으로 열린다)."""
@@ -145,6 +157,7 @@ def build_mac():
     boot = DIST / "install.sh"
     boot.write_bytes((HERE / "bootstrap" / "install.sh").read_bytes().replace(b"\r\n", b"\n"))
     print(f"한 줄 설치: {boot}  sha256 {sha256(boot)}")
+    write_mac_eulji()
 
 
 def main():
@@ -201,6 +214,11 @@ def main():
         boot_app = DIST / "install-app.ps1"
         boot_app.write_bytes(raw.replace(line, "$Edition = 'app'  # EDITION (install-app.ps1)").encode("ascii"))
         print(f"앱용 한 줄 설치: {boot_app}  sha256 {sha256(boot_app)}")
+        # 을지대 AX 캠프용 cli 판(2026-11-15): 같은 방식으로 EDITION 줄만 'cli' 로 고정 + 맥용 install-eulji.sh
+        boot_cli = DIST / "install-eulji.ps1"
+        boot_cli.write_bytes(raw.replace(line, "$Edition = 'cli'  # EDITION (install-eulji.ps1)").encode("ascii"))
+        print(f"을지대(cli) 한 줄 설치: {boot_cli}  sha256 {sha256(boot_cli)}")
+        write_mac_eulji()
 
 
 if __name__ == "__main__":

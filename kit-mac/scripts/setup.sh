@@ -6,6 +6,8 @@
 # 옵션: --auto     질문 없이 진행(점검·E2E 용)
 #       --no-open  끝나고 VS Code 를 열지 않음
 #       --oneliner 한 줄 설치(bootstrap/install.sh)가 불렀다 — 끝나면 이어서 로그인할지 묻는다
+# 판:   환경변수 AUTOFROG_KIT_EDITION=cli (install-eulji.sh 가 고정 · 2026-11-15 을지대 AX 캠프) — VS Code(확장 포함)·코덱스(cx 포함)를
+#       빼고 깔고, 로그인은 GitHub → Vercel → Supabase → 클로드 네 가지를 묻는다(코덱스만 뺀다). 끝나면 VS Code 대신 "안내 페이지의 다음 단계(클로드 앱 설치)" 로 보낸다.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 KIT_ROOT="$(dirname "$HERE")"
@@ -16,6 +18,8 @@ AUTO=0; NO_OPEN=0; ONELINER=0
 for a in "$@"; do
     case "$a" in --auto) AUTO=1 ;; --no-open) NO_OPEN=1 ;; --oneliner) ONELINER=1 ;; esac
 done
+CLI=0
+[ "${AUTOFROG_KIT_EDITION:-}" = cli ] && CLI=1
 
 mkdir -p "$LOG_DIR" "$KIT_HOME" "$KIT_BIN"
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -42,7 +46,11 @@ run_step() {
 }
 die_step() { STEP_ERR="$1"; return 1; }
 
+if [ $CLI = 1 ]; then
+    title '클로드 코드 원클릭 설치 프로그램 — 을지대 AX 캠프용 (맥 · 온라인 설치판 — 최신판을 공식 배포처에서 받습니다)'
+else
 title '오토프로그 설치 키트 (맥 · 온라인 설치판 — 최신판을 공식 배포처에서 받습니다)'
+fi
 echo '  필요한 프로그램을 차례로 설치합니다. 창을 닫지 말고 기다려 주세요.'
 printf '  %s기록 파일: %s%s\n' "$C_D" "$LOG_FILE" "$C_0"
 
@@ -62,7 +70,7 @@ s_precheck() {
     free="$(df -g "$HOME" | awk 'NR == 2 { print $4 }')"
     if [ "${free:-99}" -lt 5 ]; then warn "디스크 여유 공간이 ${free}GB 입니다. 5GB 이상 비워 두세요."; notes="$notes lowdisk=${free}G"; fi
 
-    if pgrep -xq 'Code' || pgrep -f -q 'Visual Studio Code.app/Contents/MacOS/'; then
+    if [ $CLI = 0 ] && { pgrep -xq 'Code' || pgrep -f -q 'Visual Studio Code.app/Contents/MacOS/'; }; then
         if [ $AUTO = 1 ]; then
             notes="$notes vscode-running"
         else
@@ -74,13 +82,22 @@ s_precheck() {
         fi
     fi
 
-    for h in 'https://downloads.claude.ai/claude-code-releases/latest|클로드 다운로드' \
-             'https://chatgpt.com/codex/install.sh|코덱스 다운로드' \
-             'https://registry.npmjs.org/|npm 저장소' \
-             'https://github.com/|GitHub' \
-             'https://nodejs.org/dist/index.json|Node.js 배포처' \
-             'https://update.code.visualstudio.com/api/update/darwin-arm64/stable/latest|VS Code 배포처' \
-             'https://marketplace.visualstudio.com/|VS Code 확장'; do
+    if [ $CLI = 1 ]; then
+        # cli 판: 코덱스·VS Code 배포처는 쓰지 않으니 점검하지 않는다
+        set -- 'https://downloads.claude.ai/claude-code-releases/latest|클로드 다운로드' \
+               'https://registry.npmjs.org/|npm 저장소' \
+               'https://github.com/|GitHub' \
+               'https://nodejs.org/dist/index.json|Node.js 배포처'
+    else
+        set -- 'https://downloads.claude.ai/claude-code-releases/latest|클로드 다운로드' \
+               'https://chatgpt.com/codex/install.sh|코덱스 다운로드' \
+               'https://registry.npmjs.org/|npm 저장소' \
+               'https://github.com/|GitHub' \
+               'https://nodejs.org/dist/index.json|Node.js 배포처' \
+               'https://update.code.visualstudio.com/api/update/darwin-arm64/stable/latest|VS Code 배포처' \
+               'https://marketplace.visualstudio.com/|VS Code 확장'
+    fi
+    for h in "$@"; do
         if /usr/bin/curl -fsS -o /dev/null --connect-timeout 15 --max-time 30 -A "$UA" "${h%%|*}"; then
             ok "인터넷 연결 확인: ${h##*|}"
         else
@@ -230,9 +247,17 @@ s_vscode() {
 
 # ── 5. 셸 PATH ────────────────────────────────────────────
 s_path() {
-    write_path_block
+    if [ $CLI = 1 ] && ! have codex; then
+        write_path_block nocx   # cli 판: 코덱스를 깔지 않으니 cx 별칭도 넣지 않는다(이미 깔린 코덱스가 있으면 그대로 둔다)
+    else
+        write_path_block
+    fi
     refresh_session_path; hash -r
+    if [ $CLI = 1 ]; then
+        ok '새 터미널 창이 설치한 명령을 찾도록 셸 설정(~/.zprofile · ~/.zshrc)에 등록했습니다.'
+    else
     ok '새 터미널 창과 VS Code 터미널이 설치한 명령을 찾도록 셸 설정(~/.zprofile · ~/.zshrc)에 등록했습니다.'
+    fi
     set_result path OK "$PATH_BEGIN"
 }
 
@@ -304,6 +329,12 @@ s_extras() {
     local notes='' code_cli user_dir settings argv ext
     # cx·cc 는 셸 설정의 별칭으로 넣었다(5단계). 파일로 만들면 맥의 C 컴파일러 cc 를 가린다.
     rm -f "$KIT_BIN/cx" "$KIT_BIN/cc"
+    if [ $CLI = 1 ]; then
+        # cli 판은 VS Code 를 건드리지 않는다(이미 깔린 VS Code 가 있어도 확장·설정을 넣지 않는다)
+        ok 'cc = 클로드 바로 실행 (새 터미널 창부터)'
+        set_result extras OK 'cli'
+        return 0
+    fi
     ok 'cx = 코덱스 바로 실행, cc = 클로드 바로 실행 (새 터미널 창부터)'
 
     code_cli="$(command -v code)"
@@ -337,12 +368,18 @@ run_step git      '1. Git 설치 (애플 개발자 도구)'  s_git
 run_step node     '2. Node.js 설치'                s_node
 run_step gh       '3-1. GitHub CLI 설치'            s_gh
 run_step supabase '3-2. Supabase CLI 설치'          s_supabase
+if [ $CLI = 0 ]; then
 run_step vscode   '4. VS Code 설치'                 s_vscode
+fi
 run_step path     '5. 터미널 PATH 등록'              s_path
 run_step vercel   '6. Vercel CLI 설치'              s_vercel
 run_step claude   '7. 클로드 코드 설치'              s_claude
+if [ $CLI = 1 ]; then
+run_step extras   '9. 바로가기 명령'                 s_extras
+else
 run_step codex    '8. 코덱스 설치'                   s_codex
 run_step extras   '9. 바로가기 명령과 VS Code 설정'   s_extras
+fi
 
 # ── 10. 검증: 새 터미널 창과 같은 조건에서 버전 확인 ─────────
 title '10. 설치 확인 (새 터미널 창 기준)'
@@ -361,6 +398,13 @@ done
 # 바로가기 별칭이 새 창에서 살아 있는지
 if alias cx >/dev/null 2>&1 && alias cc >/dev/null 2>&1; then printf 'alias\t1\t\t\n'; else printf 'alias\t0\t\t\n'; fi
 EOF
+# cli 판: 코덱스·VS Code 줄을 빼고, 별칭은 cc 만 본다
+VERIFY_TOOLS='git node npm npx gh supabase vercel claude codex code'
+if [ $CLI = 1 ]; then
+    VERIFY_TOOLS='git node npm npx gh supabase vercel claude'
+    /usr/bin/sed -e "s/^for k in .*; do\$/for k in $VERIFY_TOOLS; do/" \
+        -e 's/alias cx >\/dev\/null 2>&1 && alias cc/alias cc/' "$VERIFY_SH" > "$VERIFY_SH.tmp" && mv "$VERIFY_SH.tmp" "$VERIFY_SH"
+fi
 LOGIN_SHELL="${SHELL:-/bin/zsh}"
 case "$LOGIN_SHELL" in */zsh|*/bash) ;; *) LOGIN_SHELL=/bin/zsh ;; esac
 VERIFIED="$(cd "$HOME" && /usr/bin/env -i HOME="$HOME" USER="$USER" LOGNAME="${LOGNAME:-$USER}" SHELL="$LOGIN_SHELL" TERM=xterm-256color \
@@ -370,7 +414,7 @@ ALL_OK=1
 grep -q '|FAIL|' "$RES_FILE" && ALL_OK=0
 echo
 VERIFY_JSON=''
-for k in git node npm npx gh supabase vercel claude codex code; do
+for k in $VERIFY_TOOLS; do
     case $k in
         # 한글은 화면에서 두 칸을 차지해 printf 폭 맞춤이 어긋난다 → 칸을 직접 맞춘 이름표(14칸)
         git) lab='Git           ' ;; node) lab='Node.js       ' ;; npm) lab='npm           ' ;; npx) lab='npx           ' ;;
@@ -389,14 +433,18 @@ for k in git node npm npx gh supabase vercel claude codex code; do
     fi
 done
 if [ "$(printf '%s\n' "$VERIFIED" | awk -F'\t' '$1 == "alias" { print $2 }')" != 1 ]; then
+    if [ $CLI = 1 ]; then
+        ALL_OK=0; printf '  %s[실패] 바로가기 cc 가 새 터미널 창에서 잡히지 않습니다(~/.zshrc 확인).%s\n' "$C_R" "$C_0"
+    else
     ALL_OK=0; printf '  %s[실패] 바로가기 cx · cc 가 새 터미널 창에서 잡히지 않습니다(~/.zshrc 확인).%s\n' "$C_R" "$C_0"
+    fi
 fi
 clear_downloads
 
 # 새 PATH 를 물려받도록 VS Code 를 새로 띄운다
 OPENED=false
 APP="$(find_vscode_app)"
-if [ $NO_OPEN = 0 ] && [ -n "$APP" ] && ! pgrep -f -q 'Visual Studio Code.app/Contents/MacOS/'; then
+if [ $CLI = 0 ] && [ $NO_OPEN = 0 ] && [ -n "$APP" ] && ! pgrep -f -q 'Visual Studio Code.app/Contents/MacOS/'; then
     echo; echo '  VS Code 를 엽니다. 아래 터미널(메뉴 [터미널] → [새 터미널])에서 codex 또는 claude 를 입력해 보세요.'
     /usr/bin/open "$APP" >/dev/null 2>&1 && OPENED=true || warn 'VS Code 를 열지 못했습니다. Launchpad 나 응용 프로그램 폴더에서 직접 여세요.'
 fi
@@ -406,21 +454,39 @@ fi
 LOGIN_CMD=''
 KIT_SCRIPTS="$KIT_HOME/kit/scripts"
 if [ "$HERE" != "$KIT_SCRIPTS" ]; then mkdir -p "$KIT_SCRIPTS" && cp "$HERE"/*.sh "$KIT_SCRIPTS"/ 2>/dev/null; fi
-if [ -f "$KIT_SCRIPTS/login.sh" ]; then
+# cli 판은 판 정보(--cli)를 이 명령에 박아 둔다 — 나중에 autofrog-login 으로 다시 열어도 같은 네 가지(GitHub · Vercel · Supabase · 클로드)만 묻게.
+if [ -f "$KIT_SCRIPTS/login.sh" ] && [ $CLI = 1 ]; then
+    printf '#!/bin/bash\n# 오토프로그 설치 키트 — 로그인 마법사(GitHub·Vercel·Supabase·클로드)\nexec /bin/bash "$HOME/.autofrog-kit/kit/scripts/login.sh" --cli "$@"\n' > "$KIT_BIN/autofrog-login" \
+        && chmod 755 "$KIT_BIN/autofrog-login" && LOGIN_CMD="$KIT_BIN/autofrog-login"
+elif [ -f "$KIT_SCRIPTS/login.sh" ]; then
     printf '#!/bin/bash\n# 오토프로그 설치 키트 — 로그인 마법사(클로드·코덱스·GitHub·Vercel·Supabase)\nexec /bin/bash "$HOME/.autofrog-kit/kit/scripts/login.sh" "$@"\n' > "$KIT_BIN/autofrog-login" \
         && chmod 755 "$KIT_BIN/autofrog-login" && LOGIN_CMD="$KIT_BIN/autofrog-login"
 fi
 
 STEPS_JSON="$(awk -F'|' '{ gsub(/\\/, "\\\\", $4); gsub(/"/, "\\\"", $4); printf "%s\"%s\":{\"state\":\"%s\",\"sec\":%s,\"note\":\"%s\"}", (NR > 1 ? "," : ""), $1, $2, ($3 == "" ? 0 : $3), $4 }' "$RES_FILE")"
 REPORT="$LOG_DIR/result-$STAMP.json"
-printf '{"kit":"mac-online","finished":"%s","user":"%s","macos":"%s","arch":"%s","allOk":%s,"openedCode":%s,"loginCommand":"%s","steps":{%s},"verify":{%s}}\n' \
-    "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$(json_escape "$USER")" "$(/usr/bin/sw_vers -productVersion)" "$(mac_arch)" \
+EDITION_JSON=''
+[ $CLI = 1 ] && EDITION_JSON='"edition":"cli",'
+printf '{"kit":"mac-online",%s"finished":"%s","user":"%s","macos":"%s","arch":"%s","allOk":%s,"openedCode":%s,"loginCommand":"%s","steps":{%s},"verify":{%s}}\n' \
+    "$EDITION_JSON" "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$(json_escape "$USER")" "$(/usr/bin/sw_vers -productVersion)" "$(mac_arch)" \
     "$([ $ALL_OK = 1 ] && echo true || echo false)" "$OPENED" "$(json_escape "$LOGIN_CMD")" "$STEPS_JSON" "${VERIFY_JSON%,}" > "$REPORT"
 cp "$REPORT" "$LOG_DIR/result-latest.json"
 rm -f "$RES_FILE"
 
 echo
-if [ $ALL_OK = 1 ]; then
+if [ $ALL_OK = 1 ] && [ $CLI = 1 ]; then
+    # cli 판은 VS Code 를 열지 않는다 — 로그인(GitHub · Vercel · Supabase · 클로드) 뒤 안내 페이지의 다음 단계(클로드 앱 설치)로 보낸다
+    printf '  %s모든 설치가 끝났습니다.%s\n' "$C_G" "$C_0"
+    echo '  로그인(GitHub · Vercel · Supabase · 클로드)은 나중에 새 터미널 창에서  autofrog-login  을 입력해도 됩니다.'
+    if [ $ONELINER = 1 ] && [ $AUTO = 0 ]; then
+        echo
+        read -r -p '  이어서 로그인할까요? (Enter = 예 / n = 나중에 autofrog-login 으로) ' a
+        case "$a" in n|N|no|아니*) ;; *) /bin/bash "$KIT_SCRIPTS/login.sh" --cli ;; esac
+    fi
+    echo
+    printf '  %s설치가 끝났습니다. 안내 페이지로 돌아가 다음 단계(클로드 앱 설치)로 넘어가세요.%s\n' "$C_G" "$C_0"
+    exit 0
+elif [ $ALL_OK = 1 ]; then
     printf '  %s모든 설치가 끝났습니다.%s\n' "$C_G" "$C_0"
     echo '  다음 단계: 로그인 — 나중에 하려면 새 터미널 창에서  autofrog-login  을 입력하세요.'
     if [ $ONELINER = 1 ] && [ $AUTO = 0 ]; then

@@ -89,6 +89,14 @@ Git 2.56 은 `ucrt64\bin\zlib1.dll` 등이 막혀 git 자체가 "잘못된 이�
 
 A4 한 장 매뉴얼: [`manual/`](manual/)
 
+### 다른 판 — 앱용(`app`) · 을지대 AX 캠프용(`cli`)
+
+- **앱용 `app`** (2026-11-03 · `install-app.ps1` = autofrog.kr/kosi.ps1): 클로드 코드 데스크톱 앱용. Git · Node.js · GitHub/Supabase/Vercel CLI 만 깔고 VS Code · 클로드 CLI · 코덱스 · 로그인은 뺍니다.
+- **을지대 AX 캠프용 `cli`** (2026-11-15 · `install-eulji.ps1` / 맥 `install-eulji.sh`): 기본판에서 **VS Code(확장 포함) · 코덱스(`cx` 포함)만 뺀 판**입니다. Git · Node.js(npm · npx) · GitHub CLI · Supabase CLI · Vercel CLI · 클로드 코드(+`cc`)를 깔고, 확인 표는 8줄입니다.
+  로그인은 **GitHub → Vercel → Supabase → 클로드 네 가지**를 묻고(코덱스만 뺌), 바탕화면 [오토프로그 로그인] 아이콘(맥은 `autofrog-login`)으로 다시 열어도 같습니다 — 윈도우는 설치 기록(`result-latest.json` 의 `edition`), 맥은 `autofrog-login` 명령에 박힌 `--cli` 로 판을 압니다.
+  끝나면 VS Code 를 열지 않고 "안내 페이지의 다음 단계(클로드 앱 설치)로 넘어가세요" 라고 알립니다.
+- 두 파일 모두 `build.py --online` 이 `install.ps1` · `install.sh` 의 EDITION 줄만 고정해 만듭니다. 시험할 때는 환경변수 `AUTOFROG_KIT_EDITION=app` 또는 `cli` 로 같은 효과를 냅니다.
+
 ## 맥(macOS)판
 
 `kit-mac/` — 같은 8가지를 맥에 설치합니다. macOS 13.5 이상, 애플 실리콘·인텔.

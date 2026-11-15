@@ -2,13 +2,18 @@
 # 오토프로그 설치 키트(맥) — 로그인 마법사
 # 브라우저 승인은 사람이 직접 한다. 이 스크립트는 순서를 잡아 주고, 됐는지 확인만 한다.
 # --check : 로그인 상태 표만 보여 준다(아무것도 실행하지 않음 — 점검·E2E 용)
+# --cli   : cli 판(2026-11-15 을지대 AX 캠프) — GitHub → Vercel → Supabase → 클로드 네 가지를 묻는다(코덱스만 뺀다). setup.sh 가 autofrog-login 명령에 박아 둔다.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/common.sh"
 refresh_session_path
 mkdir -p "$LOG_DIR"
-CHECK_ONLY=0
-[ "${1:-}" = "--check" ] && CHECK_ONLY=1
+CHECK_ONLY=0; CLI=0
+for a in "$@"; do
+    case "$a" in --check) CHECK_ONLY=1 ;; --cli) CLI=1 ;; esac
+done
+LOGIN_KEYS='codex claude github vercel supabase'
+[ $CLI = 1 ] && LOGIN_KEYS='github vercel supabase claude'
 
 # 상태: 1 = 로그인됨, 0 = 로그인 필요, - = 설치 안 됨
 test_login() {
@@ -33,7 +38,7 @@ S_codex=''; S_claude=''; S_github=''; S_vercel=''; S_supabase=''
 show_table() {
     local k s json=''
     echo
-    for k in codex claude github vercel supabase; do
+    for k in $LOGIN_KEYS; do
         s="$(test_login "$k")"
         eval "S_$k=\$s"
         case "$s" in
@@ -55,53 +60,78 @@ ask() {
     case "$a" in n|N|no|아니*) return 1 ;; *) return 0 ;; esac
 }
 
-# 1. 코덱스
-if [ "$S_codex" = 0 ] && ask '코덱스(ChatGPT 계정)에 로그인할까요?'; then
-    step '브라우저가 열리면 ChatGPT 계정으로 로그인하세요.'
-    codex login
-    if ! codex login status >/dev/null 2>&1; then
-        warn '브라우저 로그인이 안 됐습니다. 코드 입력 방식으로 다시 시도합니다.'
-        codex login --device-auth
+login_claude() {
+    # 2. 클로드 (클로드 코드는 처음 실행할 때 로그인 화면이 나온다)
+    if [ "$S_claude" = 0 ] && ask '클로드에 로그인할까요?'; then
+        step '클로드가 열리면 화면 안내대로 로그인하세요. 로그인이 끝나면 /exit 를 입력해 나옵니다.'
+        claude
     fi
-fi
+}
 
-# 2. 클로드 (클로드 코드는 처음 실행할 때 로그인 화면이 나온다)
-if [ "$S_claude" = 0 ] && ask '클로드에 로그인할까요?'; then
-    step '클로드가 열리면 화면 안내대로 로그인하세요. 로그인이 끝나면 /exit 를 입력해 나옵니다.'
-    claude
-fi
-
-# 3. GitHub — 질문 4개를 건너뛰고 바로 브라우저 승인으로 간다. git push 도 이 로그인을 쓰게 연결한다.
-if [ "$S_github" = 0 ] && ask 'GitHub 에 로그인할까요?'; then
-    # git 비밀번호 관리자를 gh 로 먼저 지정해 둔다. 이게 없으면 gh 가 영어로
-    # "Authenticate Git with your GitHub credentials? (Y/n)" 를 물어 수강생이 멈춘다.
-    gh auth setup-git --hostname github.com --force >/dev/null 2>&1
-    step '8자리 코드가 나오면 Enter 를 누르세요 → 브라우저가 열리면 코드를 붙여 넣고(⌘+V, 자동 복사됨) 승인합니다.'
-    gh auth login --hostname github.com --git-protocol https --web --skip-ssh-key --clipboard
-fi
-if [ "$(test_login github)" = 1 ]; then
-    gh auth setup-git >/dev/null 2>&1
-    # git 커밋에 쓰는 이름·이메일이 비어 있으면 GitHub 계정으로 채운다
-    if [ -z "$(git config --global --get user.name 2>/dev/null)" ]; then
-        login="$(gh api user --jq .login 2>/dev/null)"; id="$(gh api user --jq .id 2>/dev/null)"
-        if [ -n "$login" ]; then
-            git config --global user.name "$login"
-            git config --global user.email "$id+$login@users.noreply.github.com"
-            ok "git 사용자 이름을 GitHub 계정($login)으로 맞췄습니다."
+login_github() {
+    local login id
+    # 3. GitHub — 질문 4개를 건너뛰고 바로 브라우저 승인으로 간다. git push 도 이 로그인을 쓰게 연결한다.
+    if [ "$S_github" = 0 ] && ask 'GitHub 에 로그인할까요?'; then
+        # git 비밀번호 관리자를 gh 로 먼저 지정해 둔다. 이게 없으면 gh 가 영어로
+        # "Authenticate Git with your GitHub credentials? (Y/n)" 를 물어 수강생이 멈춘다.
+        gh auth setup-git --hostname github.com --force >/dev/null 2>&1
+        step '8자리 코드가 나오면 Enter 를 누르세요 → 브라우저가 열리면 코드를 붙여 넣고(⌘+V, 자동 복사됨) 승인합니다.'
+        gh auth login --hostname github.com --git-protocol https --web --skip-ssh-key --clipboard
+    fi
+    if [ "$(test_login github)" = 1 ]; then
+        gh auth setup-git >/dev/null 2>&1
+        # git 커밋에 쓰는 이름·이메일이 비어 있으면 GitHub 계정으로 채운다
+        if [ -z "$(git config --global --get user.name 2>/dev/null)" ]; then
+            login="$(gh api user --jq .login 2>/dev/null)"; id="$(gh api user --jq .id 2>/dev/null)"
+            if [ -n "$login" ]; then
+                git config --global user.name "$login"
+                git config --global user.email "$id+$login@users.noreply.github.com"
+                ok "git 사용자 이름을 GitHub 계정($login)으로 맞췄습니다."
+            fi
         fi
     fi
-fi
+}
 
-# 4. Vercel — 화면의 주소와 코드를 브라우저에서 승인
-if [ "$S_vercel" = 0 ] && ask 'Vercel 에 로그인할까요?'; then
-    step '브라우저에서 Continue with GitHub 를 누르면 됩니다.'
-    vercel login
-fi
+login_vercel() {
+    # 4. Vercel — 화면의 주소와 코드를 브라우저에서 승인
+    if [ "$S_vercel" = 0 ] && ask 'Vercel 에 로그인할까요?'; then
+        step '브라우저에서 Continue with GitHub 를 누르면 됩니다.'
+        vercel login
+    fi
+}
 
-# 5. Supabase — Enter 로 브라우저를 연 뒤, 브라우저에 나온 확인 코드(영문·숫자 8자리)를 창에 붙여 넣는다
-if [ "$S_supabase" = 0 ] && ask 'Supabase 에 로그인할까요?'; then
-    step 'Enter 를 누르면 브라우저가 열립니다 → 로그인 후 나오는 확인 코드(8자리)를 복사해 이 창에 붙여 넣고 Enter.'
-    supabase login
+login_supabase() {
+    # 5. Supabase — Enter 로 브라우저를 연 뒤, 브라우저에 나온 확인 코드(영문·숫자 8자리)를 창에 붙여 넣는다
+    if [ "$S_supabase" = 0 ] && ask 'Supabase 에 로그인할까요?'; then
+        step 'Enter 를 누르면 브라우저가 열립니다 → 로그인 후 나오는 확인 코드(8자리)를 복사해 이 창에 붙여 넣고 Enter.'
+        supabase login
+    fi
+}
+
+if [ $CLI = 1 ]; then
+    # cli 판: GitHub → Vercel → Supabase → 클로드 네 가지(코덱스만 묻지 않는다 · 2026-11-15 대표 지시)
+    login_github
+    login_vercel
+    login_supabase
+    login_claude
+else
+    # 1. 코덱스
+    if [ "$S_codex" = 0 ] && ask '코덱스(ChatGPT 계정)에 로그인할까요?'; then
+        step '브라우저가 열리면 ChatGPT 계정으로 로그인하세요.'
+        codex login
+        if ! codex login status >/dev/null 2>&1; then
+            warn '브라우저 로그인이 안 됐습니다. 코드 입력 방식으로 다시 시도합니다.'
+            codex login --device-auth
+        fi
+    fi
+
+    login_claude
+
+    login_github
+
+    login_vercel
+
+    login_supabase
 fi
 
 title '로그인 결과'

@@ -17,6 +17,9 @@
 # Edition (2026-11-03): build.py writes install-app.ps1 from this file with the EDITION line fixed to 'app'
 #   (autofrog.kr/kosi.ps1) = Claude Code desktop app edition: Git, Node.js, GitHub/Supabase/Vercel CLI only,
 #   no VS Code / claude CLI / codex / login. AUTOFROG_KIT_EDITION=app does the same for tests.
+# Edition cli (2026-11-15): build.py also writes install-eulji.ps1 with the EDITION line fixed to 'cli'
+#   (Eulji AX camp) = default edition minus VS Code and codex; login asks GitHub, Vercel, Supabase and Claude (no codex).
+#   AUTOFROG_KIT_EDITION=cli does the same for tests.
 #
 # KEEP THIS FILE ASCII-ONLY. Windows PowerShell 5.1 "irm" decodes a response without a charset
 # (GitHub releases and Vercel send application/octet-stream) as ISO-8859-1, so any Korean here
@@ -33,6 +36,7 @@ $PS = Join-Path $PSHOME 'powershell.exe'
 
 Write-Host ''
 if ($Edition -eq 'app') { Write-Host '  Claude Code one-click installer (app edition) - downloading (internet connection needed) ...' -ForegroundColor Green }
+elseif ($Edition -eq 'cli') { Write-Host '  Claude Code one-click installer (Eulji AX camp) - downloading (internet connection needed) ...' -ForegroundColor Green }
 else { Write-Host '  AutoFrog setup kit - downloading (internet connection needed) ...' -ForegroundColor Green }
 $tmp = Join-Path $env:TEMP ('autofrog-kit-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null

@@ -2,12 +2,19 @@
 # 브라우저 승인은 사람이 직접 한다. 이 스크립트는 순서를 잡아 주고, 됐는지 확인만 한다.
 # -CheckOnly : 로그인 상태 표만 보여 준다(아무것도 실행하지 않음 — 점검·E2E 용)
 # -Pause     : 끝나면 Enter 를 기다린다(바탕화면 '오토프로그 로그인' 아이콘으로 열 때 창이 바로 닫히지 않게)
-param([switch]$CheckOnly, [switch]$Pause)
+# -Edition   : 판(cli 면 GitHub → Vercel → Supabase → 클로드 네 가지를 묻는다 — 코덱스만 뺀다 · 2026-11-15 을지대 AX 캠프). 안 주면 설치 기록
+#              (autofrog-kit-logs\result-latest.json 의 edition)을 따른다 — 바탕화면 아이콘으로 다시 열어도 같은 판으로 묻게.
+param([switch]$CheckOnly, [switch]$Pause, [string]$Edition)
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'common.ps1')
 Update-SessionPath
 New-Item -ItemType Directory -Force -Path $script:LogDir | Out-Null
+if (-not $PSBoundParameters.ContainsKey('Edition')) {
+    $Edition = ''
+    try { $Edition = [string](Get-Content (Join-Path $script:LogDir 'result-latest.json') -Raw -Encoding UTF8 | ConvertFrom-Json).edition } catch {}
+}
+$CliEdition = ($Edition -eq 'cli')
 
 function Test-Login([string]$key) {
     switch ($key) {
@@ -24,6 +31,7 @@ function Test-Login([string]$key) {
 }
 
 $labels = [ordered]@{ codex = '코덱스(ChatGPT)'; claude = '클로드'; github = 'GitHub'; vercel = 'Vercel'; supabase = 'Supabase' }
+if ($CliEdition) { $labels = [ordered]@{ github = 'GitHub'; vercel = 'Vercel'; supabase = 'Supabase'; claude = '클로드' } }
 
 function Show-Table {
     $rows = [ordered]@{}
@@ -49,54 +57,78 @@ function Ask([string]$q) {
     return ($a -notmatch '^(n|no|아니)')
 }
 
-# 1. 코덱스
-if ($state.codex -eq $false -and (Ask '코덱스(ChatGPT 계정)에 로그인할까요?')) {
-    Write-Step '브라우저가 열리면 ChatGPT 계정으로 로그인하세요.'
-    & codex login
-    if ((Invoke-Native 'codex' @('login', 'status')).Code -ne 0) {
-        Write-Warn2 '브라우저 로그인이 안 됐습니다. 코드 입력 방식으로 다시 시도합니다.'
-        & codex login --device-auth
+function Invoke-ClaudeLogin {
+    # 2. 클로드 (클로드 코드는 처음 실행할 때 로그인 화면이 나온다)
+    if ($state.claude -eq $false -and (Ask '클로드에 로그인할까요?')) {
+        Write-Step '클로드가 열리면 화면 안내대로 로그인하세요. 로그인이 끝나면 /exit 를 입력해 나옵니다.'
+        & claude
     }
 }
 
-# 2. 클로드 (클로드 코드는 처음 실행할 때 로그인 화면이 나온다)
-if ($state.claude -eq $false -and (Ask '클로드에 로그인할까요?')) {
-    Write-Step '클로드가 열리면 화면 안내대로 로그인하세요. 로그인이 끝나면 /exit 를 입력해 나옵니다.'
-    & claude
-}
-
-# 3. GitHub — 질문 4개를 건너뛰고 바로 브라우저 승인으로 간다. git push 도 이 로그인을 쓰게 연결한다.
-if ($state.github -eq $false -and (Ask 'GitHub 에 로그인할까요?')) {
-    # git 비밀번호 관리자를 gh 로 먼저 지정해 둔다. 이게 없으면 gh 가 영어로
-    # "Authenticate Git with your GitHub credentials? (Y/n)" 를 물어 수강생이 멈춘다.
-    [void](Invoke-Native 'gh' @('auth', 'setup-git', '--hostname', 'github.com', '--force'))
-    Write-Step '8자리 코드가 나오면 Enter 를 누르세요 → 브라우저가 열리면 코드를 붙여 넣고(Ctrl+V, 자동 복사됨) 승인합니다.'
-    & gh auth login --hostname github.com --git-protocol https --web --skip-ssh-key --clipboard
-}
-if ((Test-Login 'github')) {
-    [void](Invoke-Native 'gh' @('auth', 'setup-git'))
-    # git 커밋에 쓰는 이름·이메일이 비어 있으면 GitHub 계정으로 채운다
-    if (-not (Invoke-Native 'git' @('config', '--global', '--get', 'user.name')).Out) {
-        $login = (Invoke-Native 'gh' @('api', 'user', '--jq', '.login')).Out.Trim()
-        $id = (Invoke-Native 'gh' @('api', 'user', '--jq', '.id')).Out.Trim()
-        if ($login) {
-            [void](Invoke-Native 'git' @('config', '--global', 'user.name', $login))
-            [void](Invoke-Native 'git' @('config', '--global', 'user.email', "$id+$login@users.noreply.github.com"))
-            Write-Ok "git 사용자 이름을 GitHub 계정($login)으로 맞췄습니다."
+function Invoke-GitHubLogin {
+    # 3. GitHub — 질문 4개를 건너뛰고 바로 브라우저 승인으로 간다. git push 도 이 로그인을 쓰게 연결한다.
+    if ($state.github -eq $false -and (Ask 'GitHub 에 로그인할까요?')) {
+        # git 비밀번호 관리자를 gh 로 먼저 지정해 둔다. 이게 없으면 gh 가 영어로
+        # "Authenticate Git with your GitHub credentials? (Y/n)" 를 물어 수강생이 멈춘다.
+        [void](Invoke-Native 'gh' @('auth', 'setup-git', '--hostname', 'github.com', '--force'))
+        Write-Step '8자리 코드가 나오면 Enter 를 누르세요 → 브라우저가 열리면 코드를 붙여 넣고(Ctrl+V, 자동 복사됨) 승인합니다.'
+        & gh auth login --hostname github.com --git-protocol https --web --skip-ssh-key --clipboard
+    }
+    if ((Test-Login 'github')) {
+        [void](Invoke-Native 'gh' @('auth', 'setup-git'))
+        # git 커밋에 쓰는 이름·이메일이 비어 있으면 GitHub 계정으로 채운다
+        if (-not (Invoke-Native 'git' @('config', '--global', '--get', 'user.name')).Out) {
+            $login = (Invoke-Native 'gh' @('api', 'user', '--jq', '.login')).Out.Trim()
+            $id = (Invoke-Native 'gh' @('api', 'user', '--jq', '.id')).Out.Trim()
+            if ($login) {
+                [void](Invoke-Native 'git' @('config', '--global', 'user.name', $login))
+                [void](Invoke-Native 'git' @('config', '--global', 'user.email', "$id+$login@users.noreply.github.com"))
+                Write-Ok "git 사용자 이름을 GitHub 계정($login)으로 맞췄습니다."
+            }
         }
     }
 }
 
-# 4. Vercel — 화면의 주소와 코드를 브라우저에서 승인(이메일 로그인은 2026-02 폐지됨)
-if ($state.vercel -eq $false -and (Ask 'Vercel 에 로그인할까요?')) {
-    Write-Step '브라우저에서 Continue with GitHub 를 누르면 됩니다.'
-    & vercel.cmd login
+function Invoke-VercelLogin {
+    # 4. Vercel — 화면의 주소와 코드를 브라우저에서 승인(이메일 로그인은 2026-02 폐지됨)
+    if ($state.vercel -eq $false -and (Ask 'Vercel 에 로그인할까요?')) {
+        Write-Step '브라우저에서 Continue with GitHub 를 누르면 됩니다.'
+        & vercel.cmd login
+    }
 }
 
-# 5. Supabase — Enter 로 브라우저를 연 뒤, 브라우저에 나온 확인 코드(영문·숫자 8자리)를 창에 붙여 넣는다
-if ($state.supabase -eq $false -and (Ask 'Supabase 에 로그인할까요?')) {
-    Write-Step 'Enter 를 누르면 브라우저가 열립니다 → 로그인 후 나오는 확인 코드(8자리)를 복사해 이 창에 붙여 넣고 Enter.'
-    & supabase login
+function Invoke-SupabaseLogin {
+    # 5. Supabase — Enter 로 브라우저를 연 뒤, 브라우저에 나온 확인 코드(영문·숫자 8자리)를 창에 붙여 넣는다
+    if ($state.supabase -eq $false -and (Ask 'Supabase 에 로그인할까요?')) {
+        Write-Step 'Enter 를 누르면 브라우저가 열립니다 → 로그인 후 나오는 확인 코드(8자리)를 복사해 이 창에 붙여 넣고 Enter.'
+        & supabase login
+    }
+}
+
+if ($CliEdition) {
+    # cli 판: GitHub → Vercel → Supabase → 클로드 네 가지(코덱스만 묻지 않는다 · 2026-11-15 대표 지시)
+    Invoke-GitHubLogin
+    Invoke-VercelLogin
+    Invoke-SupabaseLogin
+    Invoke-ClaudeLogin
+} else {
+    # 1. 코덱스
+    if ($state.codex -eq $false -and (Ask '코덱스(ChatGPT 계정)에 로그인할까요?')) {
+        Write-Step '브라우저가 열리면 ChatGPT 계정으로 로그인하세요.'
+        & codex login
+        if ((Invoke-Native 'codex' @('login', 'status')).Code -ne 0) {
+            Write-Warn2 '브라우저 로그인이 안 됐습니다. 코드 입력 방식으로 다시 시도합니다.'
+            & codex login --device-auth
+        }
+    }
+
+    Invoke-ClaudeLogin
+
+    Invoke-GitHubLogin
+
+    Invoke-VercelLogin
+
+    Invoke-SupabaseLogin
 }
 
 Write-Title '로그인 결과'
